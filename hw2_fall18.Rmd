@@ -1,9 +1,9 @@
 ---
 title: "Modern Data Mining - HW 2"
 author:
-- Group Member 1
-- Group Member 2
-- Group Member 3
+- Anirudh Bajaj
+- Esther Shin
+- Matt LeBaron
 output:
   pdf_document: default
   html_document: default
@@ -15,7 +15,7 @@ knitr::opts_chunk$set(fig.height=5, fig.width=11, warning = F)
 
 # constants for homework assignments
 hw_num <- 2
-hw_due_date <- "Oct, 7, 2018"
+hw_due_date <- "Oct, 10, 2018"
 ```
 
 ## Overview / Instructions
