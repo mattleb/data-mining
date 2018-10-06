@@ -15,7 +15,7 @@ knitr::opts_chunk$set(fig.height=5, fig.width=11, warning = F)
 
 # constants for homework assignments
 hw_num <- 2
-hw_due_date <- "Oct, 10, 2018"
+hw_due_date <- "Oct 10, 2018"
 ```
 
 ## Overview / Instructions
@@ -35,6 +35,21 @@ Review the code and concepts covered during lecture: multiple regression, model 
 
 Do ISLR, page 262, problem 8 only part (a) to (d) and write up the answer here. This question is designed to help us understanding model selections through simulations. 
 (e) Describe as accurate as possible what Cp and BIC are estimating?
+
+(a) 
+
+```{r, eval = F}
+# Use rnorm() to generate a predictor X of length n = 100, and a noise vector of length n = 100
+x <- rnorm(100)
+noise <- rnorm(100)
+```
+
+(b)
+
+```{r, eval = F}
+# Generate a response vector Y of length n = 100 according to the model
+y <- 1 + 2*x + 3*x^2 + 4*x^3 + noise
+```
 
 ## Problem 2:
 
