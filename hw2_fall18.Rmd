@@ -113,10 +113,47 @@ coef(new_subset, 3)
 
 ```{r, eval = T}
 # Repeat using forward selection
+forward <- regsubsets(y ~ x+x2+x3+x4+x5+x6+x7+x8+x9+x10,data = new_data, nvmax = 10, method = "forward")
+forward_sum <- summary(forward)
+forward_sum
+
+plot(forward_sum$rsq, ylab="rsq", col="red", type="p", pch=16,
+     xlab="Forward Selection")
+
+# Find the optimal model size for forward selection
+opt.size <- which.min(forward_sum$rsq)
+opt.size
+
+# Report the coefficients for forward selection
+coef(forward, 3)
 
 # Repeat using backward selection
+backward <- regsubsets(y ~ x+x2+x3+x4+x5+x6+x7+x8+x9+x10,data = new_data, nvmax = 10, method = "backward")
+backward_sum <- summary(backward)
+backward_sum
+
+plot(backward_sum$rsq, ylab="rsq", col="red", type="p", pch=16,
+     xlab="Backward Selection")
+
+# Find the optimal model size for backward selection
+opt.size <- which.min(backward_sum$rsq)
+opt.size
+
+# Report the coefficients for backward selection
+coef(backward, 3)
 
 ```
+
+Using forward and backward stepwise selection, we only use one variable (x3) as opposed to three variables (x, x2, x3).
+
+(e)
+
+Describe what Cp and BIC are estimating.
+
+Cp: an unbiased estimator of average prediction errors.
+
+BIC: uses k to estimate the number of parameters. It heavily penalizes additional variables when they are introduced into the model. Therefore, BIC models tend to have fewer variables.
+
 
 ## Problem 2:
 
