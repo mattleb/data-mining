@@ -39,7 +39,7 @@ Do ISLR, page 262, problem 8 only part (a) to (d) and write up the answer here. 
 
 (a) 
 
-```{r, eval = F}
+```{r, eval = T}
 # Use rnorm() to generate a predictor X of length n = 100, and a noise vector of length n = 100
 x <- rnorm(100)
 noise <- rnorm(100)
@@ -47,14 +47,14 @@ noise <- rnorm(100)
 
 (b)
 
-```{r, eval = F}
+```{r, eval = T}
 # Generate a response vector Y of length n = 100 according to the model
 y <- 1 + 2*x + 3*x^2 + 4*x^3 + noise
 ```
 
 (c)
 
-```{r, eval = F}
+```{r, eval = T}
 # Create the predictors x^2 through x^10
 x2 <- x^2
 x3 <- x^3
@@ -68,8 +68,54 @@ x10 <- x^10
 
 # Use the regsubsets() function to perform best subset selection
 new_data <- data.frame(x,x2,x3,x4,x5,x6,x7,x8,x9,x10,noise,y)
-new_subset <- regsubsets(y ~ .,data = new_data, nvmax = 4)
-summary(new_subset)
+new_subset <- regsubsets(y ~ x+x2+x3+x4+x5+x6+x7+x8+x9+x10,data = new_data, nvmax = 10)
+new_summary <- summary(new_subset)
+new_summary$which
+
+data.frame(variables=(1:length(new_summary$rsq)), r_squared=new_summary$rsq)
+
+# What is the best model obtained?
+data.frame(variables = (1:length(new_summary$rsq)),
+           r_squared = new_summary$rsq,
+           rss = new_summary$rss,
+           bic = new_summary$bic,
+           cp = new_summary$cp)
+```
+
+The best model obtained has three variables: x, x2, and x3. This makes sense because these three variables were used to generate Y in the first place, so they should be most predictive, although they aren't perfect because we added in noise as well.
+
+```{r, eval = T}
+# Comparing the plots for Cp, bic, and r2
+plot(new_summary$cp, xlab="Number of predictors", 
+     ylab="cp", col="red", type="p", pch=16)
+plot(new_summary$bic, xlab="Number of predictors", 
+     ylab="bic", col="blue", type="p", pch=16)
+plot(new_summary$adjr2, xlab="Number of predictors", 
+     ylab="adjr2", col="green", type="p", pch=16)
+
+# Find the optimal model size for Cp
+opt.size <- which.min(new_summary$cp)
+opt.size
+
+# Find the optimal model size for bic
+opt.size <- which.min(new_summary$bic)
+opt.size
+
+# Find the optimal model size for r2
+opt.size <- which.min(new_summary$rsq)
+opt.size
+
+# Report the coefficients of the best model obtained
+coef(new_subset, 3)
+```
+
+(d)
+
+```{r, eval = T}
+# Repeat using forward selection
+
+# Repeat using backward selection
+
 ```
 
 ## Problem 2:
