@@ -25,6 +25,7 @@ This is homework #`r paste(hw_num)` of STAT 471/571/701. It will be **due on `r 
 ```{r library, include=FALSE}
 # add your library imports here:
 library(dplyr)
+library(leaps) # regsubsets(): model selection
 ```
 
 ## Problem 0
@@ -49,6 +50,26 @@ noise <- rnorm(100)
 ```{r, eval = F}
 # Generate a response vector Y of length n = 100 according to the model
 y <- 1 + 2*x + 3*x^2 + 4*x^3 + noise
+```
+
+(c)
+
+```{r, eval = F}
+# Create the predictors x^2 through x^10
+x2 <- x^2
+x3 <- x^3
+x4 <- x^4
+x5 <- x^5
+x6 <- x^6
+x7 <- x^7
+x8 <- x^8
+x9 <- x^9
+x10 <- x^10
+
+# Use the regsubsets() function to perform best subset selection
+new_data <- data.frame(x,x2,x3,x4,x5,x6,x7,x8,x9,x10,noise,y)
+new_subset <- regsubsets(y ~ .,data = new_data, nvmax = 4)
+summary(new_subset)
 ```
 
 ## Problem 2:
