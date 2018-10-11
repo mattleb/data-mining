@@ -26,6 +26,8 @@ This is homework #`r paste(hw_num)` of STAT 471/571/701. It will be **due on `r 
 # add your library imports here:
 library(dplyr)
 library(leaps) # regsubsets(): model selection
+library(ggplot2)
+library(ISLR)
 ```
 
 ## Problem 0
@@ -174,6 +176,111 @@ auto_data <- ISLR::Auto
   * Predict the mpg of a car that is: built in 1983, in US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower and weighs 4000 pounds. Give a 95% CI.
 
 
+```{r}
+#Taking a look at the data
+dim(auto)
+str(auto)
+
+#Exclude non-numeric values, and run pairwise scatter plot
+auto %>%
+  select_if(is.numeric) %>%
+  pairs()
+
+#From this we can see that MPG is highly correlated with Displacement, Horsepower and Weight
+```
+
+```{r}
+#Use Regsubsets to find the model with the smallest RSS 
+names(auto)
+data2 <- auto[,-9]
+fit.exh <- regsubsets(mpg~ .,data2,nvmax = 25, method = "exhaustive")
+names(fit.exh)
+#List the model with the smallest RSS among each size of the model
+summary(fit.exh)
+f.e<-summary(fit.exh)
+f.e$which
+```
+
+```{r}
+data.frame(variables=(1:length(f.e$rsq)), r_squared=f.e$rsq)
+#R2 increases as we increase number of variables (But much less incrementally so, after adding 2 variables)
+```
+
+```{r}
+data.frame(variables = (1:length(f.e$rsq)),
+           r_squared = f.e$rsq,
+           rss = f.e$rss,
+           bic = f.e$bic,
+           cp = f.e$cp)
+```
+
+```{r}
+coef(fit.exh, 6)
+```
+
+```{r}
+coef(fit.exh, 7)
+```
+
+plots of $Cp$ vs number of predictors and plots of $BIC$ vs number of the predictors
+```{r}
+plot(f.e$cp, xlab="Number of predictors", 
+     ylab="cp", col="red", type="p", pch=16)
+#CP smallest at 6 variables
+plot(f.e$bic, xlab="Number of predictors", 
+     ylab="bic", col="blue", type="p", pch=16)
+#BIC smallest at 3 variables
+```
+
+```{r}
+which.min(f.e$cp)
+which.min(f.e$bic) #Choose BIC
+```
+We may use 3 variable model (BIC tends to give the model with least number of predictors)
+
+```{r}
+fit.exh.var <- f.e$which[3,]
+colnames(f.e$which)[fit.exh.var] 
+```
+#[1] "(Intercept)" "weight"      "year"        "origin" 
+So we now have the three variables
+
+```{r}
+fit.final <- lm(mpg ~ weight + year + origin, data2) 
+summary(fit.final)
+```
+Final model with three variables
+
+```{r}
+par(mfrow=c(1,2), mar=c(2.5,3,1.5,1), mgp=c(1.5,0.5,0))
+plot(fit.final,1)
+plot(fit.final,2)
+
+```
+
+#Assessment of the model ("Describe the final model and its accuracy. Include diagnostic plots with particular focus on the model residuals. Summarize the effects found."):
+#MPG can be reasonably predicted by using three variables (weight, year, origin). The model has a good level of accuracy with an Adjusted Rsquare of 0.816. Diagnostic plot is included in the above chunk. 
+
+#Making Predictions ("Predict the mpg of a car that is: built in 1983, in US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower and weighs 4000 pounds. Give a 95% CI.")
+```{r}
+predicted.mpg <- data2[1,]
+predicted.mpg$mpg <- NA
+predicted.mpg$year <- 83
+predicted.mpg$origin <- 1
+predicted.mpg$cylinders <- 8
+predicted.mpg$displacement <- 350
+predicted.mpg$horsepower <- 260
+predicted.mpg$weight <- 4000
+
+predicted.mpg.final.model <- predict(fit.final, predicted.mpg, interval="confidence", se.fit=TRUE) 
+print(predicted.mpg.final.model)
+```
+#fit      lwr      upr
+#1 21.96954 21.01736 22.92172
+#$se.fit
+#[1] 0.4842996
+
+#The predicted MPG for such car is 21.97 (21.02, 22.92)
 
 
 
