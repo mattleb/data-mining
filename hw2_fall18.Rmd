@@ -23,11 +23,11 @@ hw_due_date <- "Oct 10, 2018"
 This is homework #`r paste(hw_num)` of STAT 471/571/701. It will be **due on `r paste(hw_due_date)` by 11:59 PM** on Canvas. You can directly edit this file to add your answers. Submit the Rmd file, a PDF or word or HTML version with only 1 submission per HW team.
 
 ```{r library, include=FALSE}
-# add your library imports here:
 library(dplyr)
 library(leaps) # regsubsets(): model selection
 library(ggplot2)
 library(ISLR)
+library(glmnet)
 ```
 
 ## Problem 0
@@ -163,10 +163,10 @@ This will be the last part of the Auto data from ISLR. The original data contain
 
 You can access the necessary data with the following code:
 
-```{r, eval = F}
+```{r, eval = T}
 # check if you have ISLR package, if not, install it
 if(!requireNamespace('ISLR')) install.packages('ISLR') 
-auto_data <- ISLR::Auto
+auto <- ISLR::Auto
 ```
 
 
@@ -177,7 +177,6 @@ auto_data <- ISLR::Auto
 
 
 ```{r}
-#Taking a look at the data
 dim(auto)
 str(auto)
 
@@ -290,9 +289,6 @@ print(predicted.mpg.final.model)
 Crime data continuation:  We use a subset of the crime data discussed in class, but only look at Florida and California. `crimedata` is available on Canvas; we show the code to clean here. 
 
 ```{r}
-#install.packages("glmnet")
-library(glmnet)
-install.packages(library(glmnet))
 cdata <- read.csv("CrimeData_clean.csv", stringsAsFactors = F, na.strings = c("?")) ## load crime data file
 cdata <- dplyr::filter(cdata, state %in% c("FL", "CA")) ## filter data for Florida and California 
 dim(cdata)
