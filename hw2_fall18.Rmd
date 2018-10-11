@@ -258,10 +258,10 @@ plot(fit.final,2)
 
 ```
 
-#Assessment of the model ("Describe the final model and its accuracy. Include diagnostic plots with particular focus on the model residuals. Summarize the effects found.") 
-MPG can be reasonably predicted by using three variables (weight, year, origin). The model has a good level of accuracy with an Adjusted Rsquare of 0.816. Diagnostic plot is included in the above chunk. 
+#Assessment of the model ("Describe the final model and its accuracy. Include diagnostic plots with particular focus on the model residuals. Summarize the effects found."):
+#MPG can be reasonably predicted by using three variables (weight, year, origin). The model has a good level of accuracy with an Adjusted Rsquare of 0.816. Diagnostic plot is included in the above chunk. 
 
-#Predictions ("Predict the mpg of a car that is: built in 1983, in US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower and weighs 4000 pounds. Give a 95% CI.")
+#Making Predictions ("Predict the mpg of a car that is: built in 1983, in US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower and weighs 4000 pounds. Give a 95% CI.")
 ```{r}
 predicted.mpg <- data2[1,]
 predicted.mpg$mpg <- NA
@@ -275,9 +275,9 @@ predicted.mpg$weight <- 4000
 predicted.mpg.final.model <- predict(fit.final, predicted.mpg, interval="confidence", se.fit=TRUE) 
 print(predicted.mpg.final.model)
 ```
-#       fit      lwr      upr
+#fit      lwr      upr
 #1 21.96954 21.01736 22.92172
-#  $se.fit
+#$se.fit
 #[1] 0.4842996
 
 #The predicted MPG for such car is 21.97 (21.02, 22.92)
