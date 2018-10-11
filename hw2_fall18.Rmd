@@ -344,8 +344,8 @@ Now, instead of Lasso, we want to consider how changing the value of alpha (i.e.
 
 1. What is your final elastic net model? What were the alpha and lambda values? What is the prediction error?
 ```{r}
-fit2 <- glmnet(X, Y, alpha=.99)
-fit2.cv <- cv.glmnet(X, Y, alpha=.99, nfolds=10)
+fit2 <- glmnet(Xvar, Yvar, alpha=.99)
+fit2.cv <- cv.glmnet(Xvar, Yvar, alpha=.99, nfolds=10)
 fit2.cv$lambda.1se
 plot(fit2.cv)
 ```
@@ -354,8 +354,8 @@ plot(fit2.cv)
 cof2 <- coef(fit2.cv, s="lambda.1se") 
 cof2 <- cof2[which(cof2 !=0),] ##  non-zero coefficients
 var2 <- rownames(as.matrix(cof2)) ## output names
-input2 <- as.formula(paste("violentcrimes.perpop", "~", paste(var.1se[-1], collapse = "+"))) # prepare input
-lm2 <- lm(input2, data=crime)
+input2 <- as.formula(paste("violentcrimes.perpop", "~", paste(var2[-1], collapse = "+"))) # prepare input
+lm2 <- lm(input2, data=cdata)
 output2 <- coef(lm2) # output lm estimates
 summary(lm2)
 ```
