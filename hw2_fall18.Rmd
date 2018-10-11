@@ -290,8 +290,12 @@ print(predicted.mpg.final.model)
 Crime data continuation:  We use a subset of the crime data discussed in class, but only look at Florida and California. `crimedata` is available on Canvas; we show the code to clean here. 
 
 ```{r}
-crime <- read.csv("CrimeData.csv", stringsAsFactors = F, na.strings = c("?"))
-crime <- dplyr::filter(crime, state %in% c("FL", "CA"))
+#install.packages("glmnet")
+library(glmnet)
+install.packages(library(glmnet))
+cdata <- read.csv("CrimeData_clean.csv", stringsAsFactors = F, na.strings = c("?")) ## load crime data file
+cdata <- dplyr::filter(cdata, state %in% c("FL", "CA")) ## filter data for Florida and California 
+dim(cdata)
 ```
 
 Our goal is to find the factors which relate to violent crime. This variable is included in crime as `crime$violentcrimes.perpop`.
@@ -300,17 +304,69 @@ Our goal is to find the factors which relate to violent crime. This variable is 
 Use LASSO to choose a reasonable, small model. Fit an OLS model with the variables obtained. The final model should only include variables with p-values < 0.05. Note: you may choose to use lambda 1st or lambda min to answer the following questions where apply. 
 
 1. What is the model reported by LASSO? 
+```{r}
+Yvar <- cdata[,99] ## extracting Y
+Xvar <- model.matrix(violentcrimes.perpop~., data = cdata)[,3:99] ## extracting X 
+colnames(Xvar)
+```
+```{r}
+lass <- glmnet(Xvar, Yvar, alpha = 1) 
+str(lass)
+plot(lass) ## plot LASSO graph
+```
+```{r}
+crime <- cv.glmnet(Xvar, Yvar, alpha=1, nfolds=10) #cross validation 
+crime$cvm #  mean cv error 
+crime$lambda.min #  min point among all the cvm
+crime$nzero # non-zero coeff's 
+plot(crime)
 
+```
 2. What is the model after running OLS?
+```{r}
+cof <- coef(crime, s="lambda.1se") ## lambda 1se
+cof <- cof[which(cof !=0),] # to get  non-zero coefficients 
+var <- rownames(as.matrix(cof)) 
+input <- as.formula(paste("violentcrimes.perpop", "~", paste(var[-1], collapse = "+"))) # prepare input
 
+```
+```{r}
+lmse <- lm(input, data=cdata)
+output <- coef(lmse) # output lm estimates
+summary(lmse)
+
+```
+```{r}
+comp <- data.frame(cof, output )
+names(comp) <- c("estimates from LASSO", "lm estimates")
+comp
+
+```
 3. What is your final model, after excluding high p-value variables?
 
 Now, instead of Lasso, we want to consider how changing the value of alpha (i.e. mixing between Lasso and Ridge) will affect the model. Cross-validate between alpha and lambda, instead of just lambda. Note that the final model may have variables with p-values higher than 0.05; this is because we are optimizing for accuracy rather than parsimoniousness. 
 
 1. What is your final elastic net model? What were the alpha and lambda values? What is the prediction error?
-
+```{r}
+fit2 <- glmnet(X, Y, alpha=.99)
+fit2.cv <- cv.glmnet(X, Y, alpha=.99, nfolds=10)
+fit2.cv$lambda.1se
+plot(fit2.cv)
+```
 2. Use the elastic net variables in an OLS model. What is the equation, and what is the prediction error.
-
+```{r}
+cof2 <- coef(fit2.cv, s="lambda.1se") 
+cof2 <- cof2[which(cof2 !=0),] ##  non-zero coefficients
+var2 <- rownames(as.matrix(cof2)) ## output names
+input2 <- as.formula(paste("violentcrimes.perpop", "~", paste(var.1se[-1], collapse = "+"))) # prepare input
+lm2 <- lm(input2, data=crime)
+output2 <- coef(lm2) # output lm estimates
+summary(lm2)
+```
 3. Summarize your findings, with particular focus on the difference between the two equations.
  
-
+```{r}
+comp2 <- data.frame(cof2, output2 )
+names(comp2) <- c("estimates from Elastic Net", "lm estimates")
+comp2
+```
