@@ -219,13 +219,54 @@ The model's implications could even be valuable for bills already under consider
 
 This project should be of interest not just to legislators, but to involved citizens across the country. Applying analytics to the legislative process will yield interesting insights which could give one party or cause a leg up if they are able to apply the model implications to real-world issues (e.g. via lobbying).
 
-2. Give a preliminary summary of the data. 
+2. Give a preliminary summary of the data.
+
+```{r data summary}
+# Read in the data
+bills_train <- read.csv("Bills.subset.csv")
+
+# View variable names
+names(bills_train)
+
+# Simple overview of variable components
+str(bills_train)
+
+# Summary of variables
+summary(bills_train)
+
+# Create the target variable -- pass or fail
+bills_train$pass <- 0
+bills_train$pass[bills_train$status == 'bill:passed'] <- 1
+bills_train$pass[bills_train$status == 'governor:signed'] <- 1
+bills_train$pass[bills_train$status == 'governor:received'] <- 1
+summary(bills_train$pass)
+```
+
+By looking at the mean of the target "pass" variable that we have created, we see that only 6.6% of the bills which are introduced end up passing.
+
 3. Based on the data available to you, you need to build a classifier. Provide the following information:
     *	The process of building your classifier
     *	Methods explored, and why you chose your final model
     *	Did you use a training and test set to build your classifier using the training data? If so, describe the process including information about the size of your training and test sets.
     *	What is the criterion being used to build your classifier?
     *	How do you estimate the quality of your classifier?
+    
+```{r}
+# fit cosponsor variables
+fit1 <- glm(pass ~ num_cosponsors + num_d_cosponsors + num_r_cosponsors + num_originating_committee_cosponsors + num_originating_committee_cosponsors_r + num_originating_committee_cosponsors_d, data=bills_train, family=binomial())
+summary(fit1) # show results
+
+# fit non-cosponsor variables
+fit2 <- glm(pass ~ sponsor_party + session + title_word_count + originating_committee + day.of.week.introduced + num_amendments + is_sponsor_in_leadership, data=bills_train, family=binomial())
+summary(fit2) # show results
+
+# fit all variables
+fit3 <- glm(pass ~ sponsor_party + session + num_cosponsors + num_d_cosponsors + num_r_cosponsors + title_word_count + originating_committee + day.of.week.introduced + num_amendments + is_sponsor_in_leadership + num_originating_committee_cosponsors + num_originating_committee_cosponsors_r + num_originating_committee_cosponsors_d, data=bills_train, family=binomial())
+summary(fit3) # show results
+```
+
+We looked at several versions of the model and compared them using AIC. Models which only looked at cosponsor variables had higher AIC than models with additional variables, so we chose to include other variables as well.
+
 4. Suggestions you may have: what important features should have been collected which would have helped us to improve the quality of the classifiers.
 
 *Final notes*: The data is graciously lent from a friend. It is only meant for you to use in this class. All other uses are prohibited without permission. 
