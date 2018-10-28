@@ -1,9 +1,10 @@
 ---
 title: "Modern Data Mining - HW 3"
 author:
-- Group Member 1
-- Group Member 2
-- Group Member 3
+- Anirudh Bajaj
+- Esther Shin
+- Matt LeBaron
+- Raman Chadha
 output:
   pdf_document: default
   html_document: default
