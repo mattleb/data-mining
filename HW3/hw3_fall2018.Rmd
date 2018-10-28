@@ -149,7 +149,7 @@ Start with all variables. Our goal is to fit a well-fitting model, that is still
 
 i. Use backward selection method. Only keep variables whose coefficients are significantly different from 0 at .05 level. Kick out the variable with the largest p-value first, and then re-fit the model to see if there are other variables you want to kick out.
 ii. Use AIC as the criterion for model selection. Find a model with small AIC through exhaustive search. Does exhaustive search  guarantee that the p-values for all the remaining variables are less than .05? Is our final model here the same as the model from backwards elimination? 
-iii. Use the model chosen from part ii. as the final model. Write a brief summary to describe important factors relating to Heart Diseases (i.e. the relationships between those variables in the model and heart disease). Give a definition of “important factors”. 
+iii. Use the model chosen from part ii. as the final model. Write a brief summary to describe important factors relating to Heart Diseases (i.e. the relationships between those variables in the model and heart disease). Give a definition of "important factors". 
 
 ### Part 1D - Prediction
 Liz is a patient with the following readings: `AGE=50, GENDER=FEMALE, SBP=110, DBP=80, CHOL=180, FRW=105, CIG=0`. What is the probability that she will have heart disease, according to our final model?
@@ -178,7 +178,7 @@ e. Use weighted misclassification error, and set $a_{10}/a_{01}=1$. How well doe
 
 How well can we predict whether a bill will be passed by the legislature? 
 
-Hundreds to thousands of bills are written each year in Pennsylvania. Some are long, others are short. Most of the bills do not even get to be voted on (“sent to the floor”). The chamber meets for 2-year sessions.  Bills that are not voted on before the end of the session (or which are voted on but lose the vote) are declared dead. Most bills die. In this study we examine about 8000 bills proposed since 2009, with the goal of building a classifier which has decent power to forecast which bills are likely to be passed. 
+Hundreds to thousands of bills are written each year in Pennsylvania. Some are long, others are short. Most of the bills do not even get to be voted on ("sent to the floor""). The chamber meets for 2-year sessions.  Bills that are not voted on before the end of the session (or which are voted on but lose the vote) are declared dead. Most bills die. In this study we examine about 8000 bills proposed since 2009, with the goal of building a classifier which has decent power to forecast which bills are likely to be passed. 
 
 We have available some information about 8011 bills pertaining to legislation introduced into the Pennsylvania House of Representatives.  The goal is to predict which proposals will pass the House. Here is some information about the data:
 
@@ -186,19 +186,19 @@ The response is the variable called `status.` `Bill:passed` means that the bill 
 
 Here are the rest of the columns:
 
-*	`Session` – in which legislative session was the bill introduced
-*	`Sponsor_party` – the party of the legislator who sponsored the bill (every bill has a sponsor)
-*	`Bill_id` – of the form HB-[bill number]-[session], e.g., `HB-2661-2013-2014` for the 2661st House Bill introduced in the 2013-2014 session.
-*	`Num_cosponsors` – how many legislators cosponsored the bill
-*	`Num_d_cosponsors` – how many Democrats cosponsored the bill
-*	`Num_r_cosponsors` – how many Republicans cosponsored the bill
-*	`Title_word_count` – how many words are in the bill’s title
-*	`Originating_committee` – most bills are sent (“referred”) to a committee of jurisdiction (like the transportation committee, banking & insurance committee, agriculture & rural affairs committee) where they are discussed and amended.  The originating committee is the committee to which a bill is referred.
-*	`Day_of_week_introduced` – on what day the bill was introduced in the House (1 is Monday)
-*	`Num_amendments` – how many amendments the bill has
-*	`Is_sponsor_in_leadership` – does the sponsor of the bill hold a position inside the House (such as speaker, majority leader, etc.)
-*	`num_originating_committee_cosponsors` – how many cosponsors sit on the committee to which the bill is referred
-*	`num_originating_committee_cosponsors_r` – how many Republican cosponsors sit on the committee to which the bill is referred
+*	`Session` : in which legislative session was the bill introduced
+*	`Sponsor_party` : the party of the legislator who sponsored the bill (every bill has a sponsor)
+*	`Bill_id` : of the form HB-[bill number]-[session], e.g., `HB-2661-2013-2014` for the 2661st House Bill introduced in the 2013-2014 session.
+*	`Num_cosponsors` : how many legislators cosponsored the bill
+*	`Num_d_cosponsors` : how many Democrats cosponsored the bill
+*	`Num_r_cosponsors` : how many Republicans cosponsored the bill
+*	`Title_word_count` : how many words are in the bill's title
+*	`Originating_committee` : most bills are sent ("referred") to a committee of jurisdiction (like the transportation committee, banking & insurance committee, agriculture & rural affairs committee) where they are discussed and amended.  The originating committee is the committee to which a bill is referred.
+*	`Day_of_week_introduced` : on what day the bill was introduced in the House (1 is Monday)
+*	`Num_amendments` : how many amendments the bill has
+*	`Is_sponsor_in_leadership` : does the sponsor of the bill hold a position inside the House (such as speaker, majority leader, etc.)
+*	`num_originating_committee_cosponsors` : how many cosponsors sit on the committee to which the bill is referred
+*	`num_originating_committee_cosponsors_r` : how many Republican cosponsors sit on the committee to which the bill is referred
 *	`num_originating_committee_cosponsors_d` - how many Democratic cosponsors sit on the committee to which the bill is referred
 
 The data you can use to build the classifier is called `Bills.subset`. It contains 7011 records from the full data set. I took a random sample of 1000 bills from the 2013-2014 session as testing data set in order to test the quality of your classifier, it is called `Bills.subset.test.`
