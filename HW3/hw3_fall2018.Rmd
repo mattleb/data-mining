@@ -178,7 +178,7 @@ e. Use weighted misclassification error, and set $a_{10}/a_{01}=1$. How well doe
 
 How well can we predict whether a bill will be passed by the legislature? 
 
-Hundreds to thousands of bills are written each year in Pennsylvania. Some are long, others are short. Most of the bills do not even get to be voted on ("sent to the floor""). The chamber meets for 2-year sessions.  Bills that are not voted on before the end of the session (or which are voted on but lose the vote) are declared dead. Most bills die. In this study we examine about 8000 bills proposed since 2009, with the goal of building a classifier which has decent power to forecast which bills are likely to be passed. 
+Hundreds to thousands of bills are written each year in Pennsylvania. Some are long, others are short. Most of the bills do not even get to be voted on ("sent to the floor"). The chamber meets for 2-year sessions.  Bills that are not voted on before the end of the session (or which are voted on but lose the vote) are declared dead. Most bills die. In this study we examine about 8000 bills proposed since 2009, with the goal of building a classifier which has decent power to forecast which bills are likely to be passed. 
 
 We have available some information about 8011 bills pertaining to legislation introduced into the Pennsylvania House of Representatives.  The goal is to predict which proposals will pass the House. Here is some information about the data:
 
@@ -212,6 +212,13 @@ Your job is to choose a best set of classifiers such that
 Here is what you need to report: 
 
 1. Write a summary about the goal of the project. Give some background information. If desired, you may go online to find out more information.
+
+The objective of this project is to create a model which can predict a legislative bill's likelihood of passing. This information would be valuable to have (a) at the time the bill is introduced, to see how optomistic we should be about its success, or (b) before the bill is even introduced, to try to create a more effective environment within which the bill could be introduced. For example, if our model indicates that introducing a bill on a Tuesday is more likely to lead to success than introducing the bill on a Monday, then the necessary preparations can be made for a Tuesday introduction.
+
+The model's implications could even be valuable for bills already under consideration. For example, if bipartisan support for a bill makes it much more likely to pass, then the bill sponsors could look for ways to attract support from the opposing party.
+
+This project should be of interest not just to legislators, but to involved citizens across the country. Applying analytics to the legislative process will yield interesting insights which could give one party or cause a leg up if they are able to apply the model implications to real-world issues (e.g. via lobbying).
+
 2. Give a preliminary summary of the data. 
 3. Based on the data available to you, you need to build a classifier. Provide the following information:
     *	The process of building your classifier
