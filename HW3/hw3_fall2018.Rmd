@@ -92,9 +92,40 @@ Conceptual questions to understand building blocks of logistic regression. All t
 
 i. Take a random subsample of size 5 from `hd_data_f` which only includes `HD` and `SBP`. Also set   `set.seed(50)`. List the three observations neatly below. No code should be shown here.
 
+```{r, echo = F}
+set.seed(50)
+sample.data <- hd_data.f[sample(1:1393, 5), c("HD", "SBP")]
+sample.data
+```
+
 ii. Write down the likelihood function using the five observations above.
 
+
+\[\begin{split}
+\mathcal{Lik}(\beta_0, \beta_1 \vert {\text Data}) &= {\text {Prob(the outcome of the data)}}\\
+&=Prob((Y=0|SBP=142), (Y=0|SBP=126), (Y=0|SBP=136), (Y=0|SBP=178), (Y=0|SBP=126)) \\
+&=Prob(Y=0|SBP=142) \times Prob(Y=0|SBP=126) \times Prob(Y=0|SBP=136) \times Prob(Y=0|SBP=178) \times Prob(Y=0|SBP=126)) \\
+&= \frac{1}{1+e^{\beta_0 + 142 \beta_1}}\cdot\frac{1}{1+e^{\beta_0 + 126\beta_1}}\cdot\frac{1}{1 + e^{\beta_0 + 136 \beta_1}}\cdot\frac{1}{1 + e^{\beta_0 + 178 \beta_1}}\cdot\frac{1}{1 + e^{\beta_0 + 126 \beta_1}}
+	\end{split}\]
+
 iii. Find the MLE's based on this subset. Report the estimated logit function and the probability of `HD`=1. Briefly explain how the MLE's are obtained based on ii. above.
+
+```{r}
+mle.sample <- glm(HD~SBP, sample.data, family=binomial(logit))
+summary(mle.sample)
+```
+
+Probability function estimated by glm using only the above 5 sample observations: 
+
+logit = -24.57 + 0.00 SBP
+
+$P(HD = 1 \vert SBP) = \frac{e^{-24.57+0.00 \times  SBP}}{1+e^{-24.57+0.00 \times SBP}}$
+
+```{r}
+#calculated probability
+exp(-24.57)/{1+exp(-24.57)}
+```
+# MLE is the maximul likelihood of observing the predicted data, given the input data. Mathematically, taking log both sides of the equation and differentiating it and equating to 0 leads to the logit function. GLM iterates on Beta0 and Beta1 values to maximize this probability. In the above case, the probability of HD=1 is very low. This is because the input sample data does not have any patient with heart disease. The SBP slope is 0, but also note that the intercept and SBP values are independently both not singnificant.
 
 
 
@@ -127,6 +158,11 @@ summary(fit1.7)
 
 
 i. Which single variable would be the most important to add? Add it to your model, and call the new fit `fit2`.  
+```{r}
+#Based on AIC values (lowest is best), Sex is the most important variable to add. Adding it to the model:
+fit2 <- glm(HD~SBP + SEX, hd_data.f, family=binomial)
+summary(fit2)
+```
 
 We will pick up the variable either with highest $|z|$ value, or smallest $p$ value. From all the two variable models we see that `SEX` will be the most important addition on top of the SBP. And here is the summary report.
 ```{r the most important addition, results='asis', comment="   "}
@@ -139,26 +175,146 @@ xtable(fit2)
 ```
 ii. Is the residual deviance of `fit2` always smaller than that of `fit1`? Why or why not?
   
+# In fit2, we find that SEX is a significant variable (p-value < 0.05), that is, controllig for SBP,  we reject the null hypothesis that SEX has no influence on the HD value. Whenever we add an additional variable that is significant, the residual deviance will always decrease. 
 
   
 iii. Perform both the Wald test and the Likelihood ratio tests (Chi-Squared) to see if the added variable is significant at the .01 level.  What are the p-values from each test? Are they the same? 
+
+# Likelihood Ratio test
+Null Deviance = 1469.3
+Residual Deviance = 1373.8
+```{r}
+chi_sq <- 1469.3 - 1373.8
+pchisq(chi_sq, 1, lower.tail=FALSE)
+```
+
+# Wald test (installing package "survey" to directly conduct Wald test)
+```{r}
+library(survey)
+regTermTest(fit2, "SEX")
+```
+
+# The added variable SEX is significant at the 0.01 level. p-value from Likelihood-Ratio test is 3.074833e-29 and from Wald test is 1.4079e-10. The p-values are different. Whereas Wald Test tests significance of an individual variable (in this case SEX), Likelihood Test tests significance of a set of variables (in this case SBP and SEX).
+
 
 ### Part 1C -  Model building
 
 Start with all variables. Our goal is to fit a well-fitting model, that is still small and easy to interpret (parsimonious).
 
 i. Use backward selection method. Only keep variables whose coefficients are significantly different from 0 at .05 level. Kick out the variable with the largest p-value first, and then re-fit the model to see if there are other variables you want to kick out.
+
+```{r}
+fit_back1 <- glm(HD~.,hd_data.f, family=binomial)
+summary(fit_back1)
+```
+```{r}
+fit_back2 <- glm(HD~. - DBP,hd_data.f, family=binomial)
+summary(fit_back2)
+```
+```{r}
+fit_back1 <- glm(HD~. - DBP - FRW,hd_data.f, family=binomial)
+summary(fit_back1)
+```
+```{r}
+fit_back3 <- glm(HD~. - DBP - FRW - CIG, hd_data.f, family=binomial)
+summary(fit_back3)
+```
+
 ii. Use AIC as the criterion for model selection. Find a model with small AIC through exhaustive search. Does exhaustive search  guarantee that the p-values for all the remaining variables are less than .05? Is our final model here the same as the model from backwards elimination? 
+
+
+#preparing the design matrix
+```{r}
+des_mat <- model.matrix(HD ~.+0, hd_data.f)
+des_mat <- data.frame(des_mat, hd_data.f$HD)
+head(des_mat)
+str(des_mat)
+```
+#finding best model based on AIC
+```{r}
+library(bestglm)
+fit.all <- bestglm(des_mat, family = binomial, method = "exhaustive", IC="AIC", nvmax = 10) 
+fit.all$BestModels 
+summary(fit.all$BestModel)
+```
+# No, exhaustive search does not gurantee that the p-values of all variables are less than 0.05. This is because the above algorithm finds the best model based on a different criterion (that is, lowest AIC value).
+
+# Hence, the model that the above algorithm produces is different as that given by backwards elimination.
+
 iii. Use the model chosen from part ii. as the final model. Write a brief summary to describe important factors relating to Heart Diseases (i.e. the relationships between those variables in the model and heart disease). Give a definition of "important factors". 
+
+
+# For the purpose of this analysis, important factors are defined as those factors that collectively best predict the probability of a heart disease in a patient.Based on the best model above (by AIC rule), the important prdictors of heard disease are as follows:
+# a) AGE - As age increases, probability of heart disease increases. Controlling for other variables, increasing age by 1 year leads to an increase of log(odds of getting heart disease) by ~0.06.
+# b) SEX - Being a male increases the probability of having a heart disease. Controlling for other variables, being a male increases log(odds of getting heart disease) by ~0.9.
+# c) SBP - As SBP increases, probability of heart disease increases. Controlling for other variables, increasing SBP by 1 unit leads to an increase of log(odds of getting heart disease) by ~0.02.
+# d) CHOL - As cholesterol increases, probability of heart disease increases. Controlling for other variables, increasing cholesterol by 1 unit leads to an increase of log(odds of getting heart disease) by ~0.004.
+# e) FRW - As weight increases, probability of heart disease increases. Controlling for other variables, increasing weight by 1 pound leads to an increase of log(odds of getting heart disease) by ~0.006.
+# f) CIG - As number of cigarettes smoked by a patient increases, probability of heart disease increases. Controlling for other variables, increasing number of cigarettes by 1 leads to an increase of log(odds of getting heart disease) by ~0.01.
 
 ### Part 1D - Prediction
 Liz is a patient with the following readings: `AGE=50, GENDER=FEMALE, SBP=110, DBP=80, CHOL=180, FRW=105, CIG=0`. What is the probability that she will have heart disease, according to our final model?
 
+```{r}
+prob_HD <- exp(-9.227856+(0.061529*50)+(0.015966*110)+(0.004493*180)+(0.006039*105)+(0.012279*0))/(1+exp(-9.227856+(0.061529*50)+(0.015966*110)+(0.004493*180)+(0.006039*105)+(0.012279*0)))
+prob_HD
+```
+# The probability that Liz will have a heard disease is 0.0496274.
+
+
 ### Part 2 - Classification analysis
 
 a. Display the ROC curve using `fit1`. Explain what ROC reports and how to use the graph. Specify the classifier such that the False Positive rate is less than .1 and the True Positive rate is as high as possible.
+
+```{r}
+library(pROC)
+fit1.roc<- roc(hd_data.f$HD, fit1$fitted, plot=T, col="blue")
+plot(1-fit1.roc$specificities, fit1.roc$sensitivities, col="red", pch=16,
+     xlab="False Positive", 
+     ylab="Sensitivity")
+```
+
+```{r}
+#my_roc <- roc(hd_data.f$HD, fit1$fitted)
+#coords(my_roc, "best", ret = "threshold")
+```
+
 b. Overlay two ROC curves: one from `fit1`, the other from `fit2`. Does one curve always contain the other curve? Is the AUC of one curve always larger than the AUC of the other one? Why or why not?
+
+```{r}
+fit2.roc<- roc(hd_data.f$HD, fit2$fitted)
+plot(1-fit1.roc$specificities, fit1.roc$sensitivities, col="red", pch=16, cex=.7, 
+     xlab="False Positive", 
+     ylab="Sensitivity")
+points(1-fit2.roc$specificities, fit2.roc$sensitivities, col="blue", pch=16, cex=.6)
+title("Blue for fit2, Red for fit1")
+```
+
+## fit2 curve (blue) contains the fit1 curve (red). Hence AUC for fit2 curve is more than AUC for fit1. This is because for any threshold value, fit2 offers a better predictive power than fit1 (as we observed previously through AIC values and other tests). Thus, for any given value of False Positive, fit2 always gives a higher True Positive rate.
+
 c. Estimate the Positive Prediction Values and Negative Prediction Values for `fit1` and `fit2` using .5 as a threshold. Which model is more desirable if we prioritize the Positive Prediction values?
+
+# Preparing the Confusion Matrix for fit1 and fit2:
+```{r}
+fit1.pred <- ifelse(fit1$fitted > 1/2, "1", "0")
+fit2.pred <- ifelse(fit2$fitted > 1/2, "1", "0")
+fit1.confmat <- table(fit1.pred, hd_data.f$HD)
+fit2.confmat <- table(fit2.pred, hd_data.f$HD)
+fit1.confmat
+fit2.confmat
+```
+```{r}
+fit1.pospre <- fit1.confmat[2,2]/(fit1.confmat[2,1]+fit1.confmat[2,2])
+fit1.negpre <- fit1.confmat[1,1]/(fit1.confmat[1,1]+fit1.confmat[1,2])
+fit2.pospre <- fit2.confmat[2,2]/(fit2.confmat[2,1]+fit2.confmat[2,2])
+fit2.negpre <- fit2.confmat[1,1]/(fit2.confmat[1,1]+fit2.confmat[1,2])
+fit1.pospre
+fit1.negpre
+fit2.pospre
+fit2.negpre
+```
+# As can be seen from above, fit2 is more desirable if we prioritize positive prediction values since Positive Prediction rate for fit2 is 0.47, which is superior than the Positive Prediction rate of fit1, which is 0.45.
+
 d. (Optional/extra credit) For `fit1`: overlay two curves,  but put the threshold over the probability function as the x-axis and positive prediction values and the negative prediction values as the y-axis.  Overlay the same plot for `fit2`. Which model would you choose if the set of positive and negative prediction values are the concerns? If you can find an R package to do so, you may use it directly.
   
 ### Part 3 - Bayes Rule
