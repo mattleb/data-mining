@@ -166,13 +166,95 @@ Bayes rules with risk ratio $\frac{a_{10}}{a_{01}}=10$ or $\frac{a_{10}}{a_{01}}
 
 
 a. Write down the linear boundary for the Bayes classifier if the risk ratio of $a_{10}/a_{01}=10$.
+```{r}
+#Copying final model from 1B for reference
+fit2 <- glm(HD~SBP + SEX, hd_data.f, family=binomial)
+summary(fit2)
+```
+
+In this case, $\frac{a_{0,1}}{a_{1,0}}=\frac{1}{10}=0.1$, therefore $prob(Y=1 \vert x) > \frac{0.1}{(1+0.1)}=0.09$ and $logit > \log(\frac{0.09}{0.91})=-2.31$
+
+For our fit  model,
+$-4.570+0.0187SBP+.9034Sex \geq -2.31$
+
+$0.0187SBP+.9034Sex \geq -2.31+4.570$
+
+$SBP \geq -48.31Sex + 120.855 $ This is the linear boundary
+
+```{r}
+#drawing the linear boundary
+plot(hd_data.f$SEX, hd_data.f$SBP, col=hd_data.f$HD, 
+     pch=as.numeric(hd_data.f$HD)+2,
+     xlab="sex", ylab="SBP")
+legend("topleft", legend=c("HD=1", "HD=0"),
+       lty=c(1,1), lwd=c(2,2), col=c("red", "black"))
+abline(a=120.85, b=-48.31, lwd=5, col="red")
+title("Linear Boundary of the Bayes Rule, when a10/a01=10")
+```
+
 b. What is your estimated weighted misclassification error for this given risk ratio?
+```{r}
+fit2.pred.bayes <- rep("0", 1406)
+fit2.pred.bayes[fit2$fitted > .09] = "1"
+fit2.pred.bayes <- as.factor(ifelse(fit2$fitted > .09, "1", "0"))
+MCE.bayes=(sum(5*(fit2.pred.bayes[hd_data.f$HD == "1"] != "1")) 
+           + sum(fit2.pred.bayes[hd_data.f$HD == "0"] != "0"))/length(hd_data.f$HD)
+MCE.bayes
+```
+
+
+
 c. Recall Liz, our patient from part 1. How would you classify her under this classifier?
+
+#First we need to calculate what will be the predicted value for Liz under the fit2 model, then use the classifier to classify her accordingly
+```{r}
+fit2.liz <- -4.570256 + (0.018717*110) + (0.903420*0)
+fit2.liz <- as.factor(ifelse(fit2.liz > .09, "1", "0"))
+  fit2.liz
+```
+#She would be classified as not at risk (level 0) under this classifier
+
 
 Now, draw two estimated curves where x = posterior threshold, and y = misclassification errors, corresponding to the thresholding rule given in x-axis.
 
+
+
 d. Use weighted misclassification error, and set $a_{10}/a_{01}=10$. How well does the Bayes rule classifier perform? 
+
+```{r}
+i <- 0.09
+while (i <.5) {
+ 
+fit2.pred.bayes <- rep("0", 1406)
+fit2.pred.bayes[fit2$fitted > i] = "1"
+fit2.pred.bayes <- as.factor(ifelse(fit2$fitted > i, "1", "0"))
+MCE.bayes<-(sum(5*(fit2.pred.bayes[hd_data.f$HD == "1"] != "1")) 
+           + sum(fit2.pred.bayes[hd_data.f$HD == "0"] != "0"))/length(hd_data.f$HD)
+MCE.i <- i
+i <- i+0.01
+}
+
+plot(MCE.bayes ~ MCE.i,xlab="threshold", ylab="MCE" )
+```
+
+
+
 e. Use weighted misclassification error, and set $a_{10}/a_{01}=1$. How well does the Bayes rule classifier perform? 
+
+```{r}
+
+fit2.pred.bayes <- rep("0", 1406)
+fit2.pred.bayes[fit2$fitted > .5] = "1"
+fit2.pred.bayes <- as.factor(ifelse(fit2$fitted > .5, "1", "0"))
+MCE.bayes<-(sum(5*(fit2.pred.bayes[hd_data.f$HD == "1"] != "1")) 
+           + sum(fit2.pred.bayes[hd_data.f$HD == "0"] != "0"))/length(hd_data.f$HD)
+
+plot(0.5,MCE.bayes,xlab="threshold", ylab="MCE" )
+```
+
+
+
+
 
 ## Problem 2
 
