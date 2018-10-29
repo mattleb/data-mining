@@ -11,7 +11,7 @@ output:
   word_document: default
 ---
 
-```{r}
+```{r, include = FALSE}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 
 # constants for homework assignments
@@ -338,7 +338,9 @@ $-4.570+0.0187SBP+.9034Sex \geq -2.31$
 
 $0.0187SBP+.9034Sex \geq -2.31+4.570$
 
-$SBP \geq -48.31Sex + 120.855 $ This is the linear boundary
+$SBP \geq -48.31Sex + 120.855$
+
+This is the linear boundary
 
 ```{r}
 #drawing the linear boundary
