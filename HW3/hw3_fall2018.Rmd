@@ -11,7 +11,7 @@ output:
   word_document: default
 ---
 
-```{r setup, include=FALSE}
+```{r}
 knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F)
 
 # constants for homework assignments
@@ -165,7 +165,7 @@ summary(fit2)
 ```
 
 We will pick up the variable either with highest $|z|$ value, or smallest $p$ value. From all the two variable models we see that `SEX` will be the most important addition on top of the SBP. And here is the summary report.
-```{r the most important addition, results='asis', comment="   "}
+```{r}
 ## How to control the summary(fit2) output to cut some junk?
 ## We could use packages: xtable or broom. 
 library(xtable)
@@ -194,8 +194,7 @@ library(survey)
 regTermTest(fit2, "SEX")
 ```
 
-# The added variable SEX is significant at the 0.01 level. p-value from Likelihood-Ratio test is 3.074833e-29 and from Wald test is 1.4079e-10. The p-values are different. Whereas Wald Test tests significance of an individual variable (in this case SEX), Likelihood Test tests significance of a set of variables (in this case SBP and SEX).
-
+# The added variable SEX is significant at the 0.01 level. p-value from Likelihood-Ratio test is 1.478913e-22 and from Wald test is 1.4079e-10. The p-values are different. Whereas Wald Test tests significance of an individual variable (in this case SEX), Likelihood Test tests significance of a set of variables (in this case SBP and SEX).
 
 ### Part 1C -  Model building
 
@@ -274,10 +273,14 @@ plot(1-fit1.roc$specificities, fit1.roc$sensitivities, col="red", pch=16,
      ylab="Sensitivity")
 ```
 
+# Let us figure out the classifier such that False Positive Rate is less than 0.1 and True Positive Rate is as high as possible
 ```{r}
-#my_roc <- roc(hd_data.f$HD, fit1$fitted)
-#coords(my_roc, "best", ret = "threshold")
+#coords(fit1.roc, "best", ret = "threshold") This gives the best threshold value (will not be used here since we have constraints mentioned in the question)
+coord_list <- list()
+coord_list[[1]] <- coords(fit1.roc, x = "all")
+coord_list[[1]]
 ```
+# For False Positive Rate to be less than 0.1, Specificity has to be more than 0.9. Based on the above table, we can see that for a Specificity of 0.9, the classifier has a threhold of 0.298. Any classifier chosen greater than this will increase specificity, but decrease sensitivity. 
 
 b. Overlay two ROC curves: one from `fit1`, the other from `fit2`. Does one curve always contain the other curve? Is the AUC of one curve always larger than the AUC of the other one? Why or why not?
 
@@ -459,7 +462,7 @@ This project should be of interest not just to legislators, but to involved citi
 
 2. Give a preliminary summary of the data.
 
-```{r data summary}
+```{r}
 # Read in the data
 bills_train <- read.csv("Bills.subset.csv")
 
