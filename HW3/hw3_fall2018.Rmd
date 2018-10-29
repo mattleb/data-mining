@@ -465,6 +465,7 @@ This project should be of interest not just to legislators, but to involved citi
 ```{r}
 # Read in the data
 bills_train <- read.csv("Bills.subset.csv")
+bills_test <- read.csv("Bills.subset.test.csv")
 
 # View variable names
 names(bills_train)
@@ -481,6 +482,12 @@ bills_train$pass[bills_train$status == 'bill:passed'] <- 1
 bills_train$pass[bills_train$status == 'governor:signed'] <- 1
 bills_train$pass[bills_train$status == 'governor:received'] <- 1
 summary(bills_train$pass)
+
+bills_test$pass <- 0
+bills_test$pass[bills_test$status == 'bill:passed'] <- 1
+bills_test$pass[bills_test$status == 'governor:signed'] <- 1
+bills_test$pass[bills_test$status == 'governor:received'] <- 1
+summary(bills_test$pass)
 ```
 
 By looking at the mean of the target "pass" variable that we have created, we see that only 6.6% of the bills which are introduced end up passing.
@@ -506,9 +513,32 @@ fit3 <- glm(pass ~ sponsor_party + session + num_cosponsors + num_d_cosponsors +
 summary(fit3) # show results
 ```
 
-We looked at several versions of the model and compared them using AIC. Models which only looked at cosponsor variables had higher AIC than models with additional variables, so we chose to include other variables as well.
+To build the classifier, we started by building several glm models using different input variables. We looked at several versions of the model and compared them using AIC. Models which only looked at cosponsor variables had higher AIC than models with additional variables, so we chose to include other variables as well.
+
+The training set was used to build the model, which is then tested on the test data set. Although the test dataset only contains 1000 observations (compared to 7011 in the training dataset), it gives us plenty of information about how our model holds up and that we are not overfitting on the training dataset.
+
+The quality of our classifier is relatively good (e.g. compared to the cosponser model "fit1") as measured by AIC. However, AIC is better as it gets closer to 0, and ours is still fairly high, implying that we could improve the model further. One way to approach this would be to come up with new interaction terms from combinations of variables (e.g. a variable which considers both the day of the week and the number of sponsors).
+
+```{r, include=FALSE}
+# # Measure AUC for the model
+# install.packages("glmnet")
+# library(glmnet)
+# pred=predict(fit3,newdata=bills_test, type="response")
+# p_zero <- 0.5
+# y_hat <- ifelse(pred >= p_zero, 1, 0)
+# test_pred <- prediction(pred, bills_test$pass)
+# perf <- performance(test_pred, "tpr", "fpr")
+# plot(perf)
+# auc <- performance(test_pred, measure = "auc")
+# auc
+```
 
 4. Suggestions you may have: what important features should have been collected which would have helped us to improve the quality of the classifiers.
 
-*Final notes*: The data is graciously lent from a friend. It is only meant for you to use in this class. All other uses are prohibited without permission. 
+The model is sound in determining whether the bill will pass, but it does not give us more detailed sense on why certain bills pass, and the probability of certain bills passing. The following additions may help the model become more nuanced:
 
+Incorporate party-specific stance on certain political issues: Certain political issues are more Democrat-leaning than Republican, and vice versa (e.g. Democrats and Republicans fundamentally differ in their views on corporate taxation). Depending on which party was more influential in a given year, and what kind of political issues were in debate in that year, it is possible that the data may provide a skewed view on the number of bills passed. Knowing this correlation and factoring it into the model may help us understand why, and potentially go further in predicting party-specific behavior for similar issues in the future.
+
+Longer time horizon: For above reason, it is important for a well-performing model to capture long enough timeline to cover multitude of scenarios.
+
+*Final notes*: The data is graciously lent from a friend. It is only meant for you to use in this class. All other uses are prohibited without permission. 
