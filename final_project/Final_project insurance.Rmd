@@ -73,7 +73,7 @@ sum(is.na(data.main))
 #it seems there are empty rows at the bottom of the dataset, so these can simply be deleted
 data <- na.omit(data.main) #there are empty rows in the dataset, to omit these data 
 str(data)
-
+View (data)
 
 ```
 
@@ -165,8 +165,30 @@ for (i in which(colnames(data)=="Roman.catholic"):which(colnames(data)=="Income.
 }
 str(data)
 
-#Variables 6-9 are religion variables, let us interpret them together
 
+#If any entry was not in the 0-9 range, it must be coded incorrectly, and would appear as NA now. Let us check if there are any NAs
+sum(is.na(data))
+#No NA varaibles, therefore all the data till now was coded properly 
+
+#Varaibles 6-9 are all linked to religion, let us interpret them together
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Roman catholic", obs=data$Roman.catholic),
+            data.frame(dataset="Protestant", obs=data$Protestant),
+            data.frame(dataset="Other ", obs=data$Other.religion),
+            data.frame(dataset="None", obs=data$No.religion))
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution of Religion")
+#We can see there is significant variation between each type of religion, and therefore these varaibles should be left as is  
+
+#Variables 10-13 are all linked to Marital status, let us interpret them together
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Married", obs=data$Married),
+            data.frame(dataset="Living together", obs=data$Living.together),
+            data.frame(dataset="Other relation ", obs=data$Other.relation),
+            data.frame(dataset="Singles", obs=data$Singles))
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution of Marital status")
+#We can see there is significant variation between each type of marital status, and therefore these varaibles should be left as is  
 
 
 
