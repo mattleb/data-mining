@@ -166,9 +166,29 @@ for (i in which(colnames(data)=="Roman.catholic"):which(colnames(data)=="Income.
 str(data)
 
 
+#Variables Average.income and Purchasing.power.class are written as percentages as per the dataset, however, this must be a error as Income should be factored on the various income levels. Therefore, we will code them as per the Levels in Table L4 (see appendix)
+for (i in which(colnames(data)=="Average.income"):which(colnames(data)=="Purchasing.power.class"))
+  {
+  data[,i] <- factor(data[,i],
+                   levels=c(0:8),
+                   labels=c("RS 0",
+                            "Rs 1 - 49",
+                            "RS 50 - 99",
+                            "Rs 100 - 199",
+                            "RS 200 - 499",
+                            "RS 500 - 999",
+                            "RS 1000 - 4999",
+                            "RS 5000 - 9999",
+                            "RS 10000 - 19999"
+                            ))
+}
+str(data)
+
+
 #If any entry was not in the 0-9 range, it must be coded incorrectly, and would appear as NA now. Let us check if there are any NAs
 sum(is.na(data))
-#No NA varaibles, therefore all the data till now was coded properly 
+#50 NA varaibles, which are not coded properly, so can be removed.
+data <- na.omit(data.main)
 
 #Varaibles 6-9 are all linked to religion, let us interpret them together
 JUST.FOR.PLOT <- rbind(data.frame(dataset="Roman catholic", obs=data$Roman.catholic),
@@ -189,6 +209,7 @@ JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
 ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
 ggtitle("Histogram with distribution of Marital status")
 #We can see there is significant variation between each type of marital status, and therefore these varaibles should be left as is  
+
 
 
 
