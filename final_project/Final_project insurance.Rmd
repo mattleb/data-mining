@@ -1,0 +1,530 @@
+---
+title: "Predicting insurance purchase for Indian farmers"
+graphics: yes
+output:
+  word_document:
+    toc: yes
+    toc_depth: '4'
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+  html_document:
+    code_folding: show
+    highlight: haddock
+    theme: lumen
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+subtitle: STAT 471/571/701, Fall 2018
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyfoot[CO,CE]{}
+- \fancyfoot[LE,RO]{\thepage}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      tidy = TRUE, fig.width = 7, fig.height = 4,
+                      fig.align='left', dev = 'pdf')
+if(!require("pacman")) install.packages("pacman")
+if(!require("pROC")) install.packages("pROC")
+pacman::p_load(dplyr, ggplot2, glmnet, car, corrplot)
+library(pROC)
+```
+
+
+
+# Introduction
+
+## Background
+
+
+## Goal of the study
+
+
+## The data
+
+
+
+### Characteristics of the Data Set
+
+
+### Description of variables
+
+
+# Research approach
+
+
+## Analyses suggested
+
+1) Identify important factors that capture the chance of a readmission within 30 days. 
+
+```{r}
+data.main<- read.csv("insurance_dataset.csv", header = T)
+
+str(data.main)
+
+sum(is.na(data.main))
+data <- na.omit(data.main) #there are empty rows in the dataset, to omit these data 
+str(data)
+
+
+
+```
+
+```{r}
+#convert the response variable to a factor and rename it to "policy.output"
+data <- data %>% rename(policy.output = No..of.mobile.home.policies ) 
+data <- data %>% mutate(policy.output = as.factor(policy.output))
+ggplot(data,aes(x=policy.output)) + geom_bar() + labs(x="No. of mobile home policies ")
+
+
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+#to determine which variables should be considered, we plot each variable and see if there is 1) enough variability within the variable, and 2) a hint of correlation with our result (<30 readmission)
+
+#encounter_id, patient_nbr, admission_type_id, discharge_disposition_id, admission_source_id  are ignored for this analysis as they are merely accounting or idenitification variables, and therefore logically cannot have any predictive power. 
+
+data.main$output <- as.integer(data.main$output) # change to integer only for this analysis
+
+
+
+
+#race
+data.main %>%
+  group_by(race) %>%
+  summarise(proportion_repeat = sum(output)/length(output)) %>%
+  ggplot(aes(x = race, y = proportion_repeat)) +
+  stat_summary(geom='bar',position='dodge') +
+  scale_fill_manual(values =c("Blue",'Red')) + coord_flip() +
+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  theme(plot.title = element_text(hjust = 0.5)) + xlab("Race") + ylab("Proportion of patients who have repeat visits in <30 days")
+#we can see that there is little variation amongst the races, but this variable could be considered. We also see there is both a "?" and an "other" category in the race, which perhaps could be expalined if the doctor could not identify the race of the person. The "?" should ideally be repalced in that case with a "NA", and for the purposes of this analysis we can remove NA for convenience. 
+
+data.main[ data.main == "?" ] <- NA
+data[data=="?"] <- NA
+data.main <- na.omit(data.main)
+data <- na.omit(data)
+
+#gender
+data.main %>%
+  group_by(gender) %>%
+  summarise(proportion_repeat = sum(output)/length(output)) %>%
+  ggplot(aes(x = gender, y = proportion_repeat)) +
+  stat_summary(geom='bar',position='dodge') +
+  scale_fill_manual(values =c("Blue",'Red')) + coord_flip() +
+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  theme(plot.title = element_text(hjust = 0.5)) + xlab("Gender") + ylab("Proportion of patients who have repeat visits in <30 days")
+#we can see that there is very little variation amongst the genders, but this variable could be considered
+
+#time_in_hospital
+data.main %>% 
+  ggplot(aes(x = time_in_hospital, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("time_in_hospital ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("Time in hospital")
+#we can see there is a clear corrlation between time spent and readmission, so this variable should be considered
+
+#all the number variables : num_lab_procedures, num_procedures, num_medications, number_outpatient, number_emergency, number_inpatient, number_diagnoses
+data.main %>% 
+  ggplot(aes(x = num_lab_procedures, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+data.main %>% 
+  ggplot(aes(x = num_procedures, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+data.main %>% 
+  ggplot(aes(x = num_medications, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+data.main %>% 
+  ggplot(aes(x = number_outpatient, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+data.main %>% 
+  ggplot(aes(x = number_emergency, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+data.main %>% 
+  ggplot(aes(x = number_inpatient, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+data.main %>% 
+  ggplot(aes(x = number_diagnoses, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("variable")
+
+#Quickly looking at the chart for all of these varaibles, we can see there is some variation with readmission on each of the varaibles. We cannot tell by eye if these varaibles should be rejected, so they are included till the next stage
+
+
+#Let us do a correlation plot to check if any two variables are highly correlated
+corrplot(cor(data.main %>% select(time_in_hospital, num_lab_procedures, num_procedures, num_medications, number_outpatient, number_emergency, number_inpatient, number_diagnoses)))
+#Only number of medications and time in hospital are  correlated, which makes logical sense as a patient with more time in hospital is likely to have got more treatment, so we can keep both variables in consideration
+
+data.main %>% 
+  ggplot(aes(x = acetohexamide, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("variable ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("acetohexamide")
+# no variation in data, all values are NO
+
+
+#weight
+data.main %>%
+  group_by(weight) %>%
+  summarise(proportion_repeat = sum(output)/length(output)) %>%
+  ggplot(aes(x = weight, y = proportion_repeat)) +
+  stat_summary(geom='bar',position='dodge') +
+  scale_fill_manual(values =c("Blue",'Red')) + coord_flip() +
+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  theme(plot.title = element_text(hjust = 0.5)) + xlab("weight") + ylab("Proportion of patients who have repeat visits in <30 days")
+# very little variation in the data
+
+# medical speciality
+data.main %>%
+  group_by(medical_specialty) %>%
+  summarise(proportion_repeat = sum(output)/length(output)) %>%
+  ggplot(aes(x = medical_specialty, y = proportion_repeat)) +
+  stat_summary(geom='bar',position='dodge') +
+  scale_fill_manual(values =c("Blue",'Red')) + coord_flip() +
+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  theme(plot.title = element_text(hjust = 0.5)) + xlab("MEdical Speciality") + ylab("Proportion of patients who have repeat visits in <30 days")
+#very little variation
+
+
+data.main$output <- as.factor(data.main$output) #restate output to factor, as this will be used in further predictive analysis
+
+
+
+#IN THE MAIN DATASET
+
+
+str(data)
+
+#to test for diag1,2,3 variables
+data %>% 
+  ggplot(aes(x = diag1_mod, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("diag1_mod ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("diag1_mod")
+
+data %>% 
+  ggplot(aes(x = diag2_mod, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("diag2_mod ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("diag2_mod")
+
+data %>% 
+  ggplot(aes(x = diag3_mod, y = readmitted)) +
+  geom_point(position="jitter",alpha=0.3) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+  panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ggtitle("diag3_mod ") +
+  theme(plot.title = element_text(hjust = 0.5)) + ylab("Readmission status") + xlab("diag3_mod")
+#There are some missing values in the diag3_mod variable also, and they can also be reclassified as NA
+data <- subset(data, data$race != "?")
+data <- subset(data, data$diag3_mod != "?")
+
+str(data)
+
+#There is a high degree of varaibility within the readmission groups based on all these diagnosis varaibles, therefore they should be included in the data set
+
+
+#split the training and test data sets
+N <- length(data$race)
+set.seed(10)
+index.train <- sample(N, 78000)
+data.train <- data[index.train,] #dim(data.train)
+data.test <- data[-index.train,] 
+dim(data.train)
+dim(data.test)
+str(data.train)
+View(data)
+
+
+```
+
+
+
+
+
+```{r}
+
+#since there is a large number of variables in our consideration set, we can attempt LASSO to fit the most parsomonious model
+
+X <- model.matrix(output ~ . -encounter_id -patient_nbr -readmitted, data = data.train)[, -1] #remove the response from matrix
+Y <- data.train$output
+
+
+fit.cv <- cv.glmnet(X, Y, alpha = 1, family="binomial", type.measure = "deviance", nfolds = 10) # fit LASSO with cross fold validation 10 times
+plot(fit.cv) #TO SEE THE LAMBDA PLOT
+
+#USING 1SE
+coef.min <- coef(fit.cv, s = "lambda.1se") # find the coefficients corresponding to the best model. 
+
+coef.min <- coef.min[which(coef.min != 0) ,] # find non- zero coeffs
+fit.cv$lambda.1se # report the lambda that gives the best model
+#coef.min #final coefs and their values
+var.min <- rownames(as.matrix(coef.min)) # output the names of variables selected
+var.min
+
+#The selected variables in the full LASSO model (1se)are "time_in_hospital" "number_emergency" "number_inpatient" "number_diagnoses" diabetesMed  disch_disp_modified    diag1_mod                   
+
+
+
+fit2.cv.auc <- cv.glmnet(X, Y, alpha = 1, family="binomial", type.measure = "auc", nfolds = 10) # AUC creitrion
+coef.min <- coef(fit2.cv.auc, s = "lambda.1se") # find the coefficients corresponding to the best model. 
+coef.min <- coef.min[which(coef.min != 0) ,] # find non- zero coeffs
+var.min <- rownames(as.matrix(coef.min)) # output the names of variables selected
+var.min
+
+#The selected variables in the full LASSO model (1se)are "time_in_hospital" "num_medications" "number_emergency" "number_inpatient" "number_diagnoses" insulin   diabetesMed  disch_disp_modified   age_mod diag1_mod diag2_mod    diag3_mod  
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+The set of available predictors is not limited to the raw variables in the data set. You may engineer any factors using the data, that you think will improve your model's quality.
+
+2) For the purpose of classification, propose a model that can be used to predict whether a patient will be a readmit within 30 days. Justify your choice. Hint: use a decision criterion, such as AUC, to choose among a few candidate models.
+
+```{r}
+
+#Let us do a backwards elimination to get the smaller LASSO model
+fit.logit.1 <- glm(output~time_in_hospital+ num_medications + number_emergency  + number_inpatient + number_diagnoses + insulin + diabetesMed + disch_disp_modified + age_mod + diag1_mod +diag2_mod + diag3_mod, family=binomial, data=data.train)
+Anova(fit.logit.1)
+
+#remove time_in_hospital
+fit.logit.2 <- glm(output~ num_medications + number_emergency  + number_inpatient + number_diagnoses + insulin + diabetesMed + disch_disp_modified + age_mod + diag1_mod +diag2_mod + diag3_mod, family=binomial, data=data.train)
+Anova(fit.logit.2)
+
+summary(fit.logit.2)
+
+#All varaibles are signifaicnt at the 0.05 level! This is our final LASSO model
+
+```
+
+```{r}
+
+#FULL MODEL WITH BACKWARDS
+fit.back.1 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr, family=binomial, data=data.train)
+Anova (fit.back.1)
+
+#remove race
+fit.back.2 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race, family=binomial, data=data.train)
+Anova (fit.back.2)
+
+#remove change
+fit.back.3 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change, family=binomial, data=data.train)
+Anova (fit.back.3)
+
+#remove gender
+fit.back.4 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender, family=binomial, data=data.train)
+Anova (fit.back.4)
+
+#remove pioglitazone
+fit.back.5 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone, family=binomial, data=data.train)
+Anova (fit.back.5)
+
+# remove glyburide
+fit.back.6 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide, family=binomial, data=data.train)
+Anova (fit.back.6)
+
+# remove rosiglitazone
+fit.back.7 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone, family=binomial, data=data.train)
+Anova (fit.back.7)
+
+# remove adm_typ_mod
+fit.back.8 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod, family=binomial, data=data.train)
+Anova (fit.back.8)
+
+# remove num_lab_procedures
+fit.back.9 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod -num_lab_procedures, family=binomial, data=data.train)
+Anova (fit.back.9)
+
+# remove number_outpatient
+fit.back.10 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod -num_lab_procedures -number_outpatient, family=binomial, data=data.train)
+Anova (fit.back.10)
+
+# remove time_in_hospital
+fit.back.11 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod -num_lab_procedures -number_outpatient -time_in_hospital, family=binomial, data=data.train)
+Anova (fit.back.11)
+
+# remove max_glu_serum
+fit.back.12 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod -num_lab_procedures -number_outpatient -time_in_hospital -max_glu_serum, family=binomial, data=data.train)
+Anova (fit.back.12)
+
+# remove insulin
+fit.back.13 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod -num_lab_procedures -number_outpatient -time_in_hospital -max_glu_serum -insulin, family=binomial, data=data.train)
+Anova (fit.back.13)
+
+# remove glipizide
+fit.back.14 <- glm(output~ . -output -readmitted -encounter_id -patient_nbr -race -change -gender -pioglitazone -glyburide -rosiglitazone -adm_typ_mod -num_lab_procedures -number_outpatient -time_in_hospital -max_glu_serum -insulin -glipizide, family=binomial, data=data.train)
+Anova (fit.back.14)
+
+# This is final model, all varaibles are significant at 0.05 level
+fit.back.final <- fit.back.14
+summary(fit.back.final)
+
+```
+
+```{r}
+#Model comparison using training data
+
+#plot ROC curve and calculate AUC
+fit.roc.lasso<- roc(data.train$output, fit.logit.2$fitted, plot=T, col="blue")
+fit.roc.lasso$auc 
+
+fit.roc.back<- roc(data.train$output, fit.back.final$fitted, plot=T, col="blue")
+fit.roc.back$auc 
+
+#Model comparison using test data
+fit.logit.test <- update(fit.logit.2, data= data.test)
+fit.back.test <- update(fit.back.final, data= data.test)
+
+fit.roc.lasso<- roc(data.test$output, fit.logit.test$fitted, plot=T, col="blue")
+fit.roc.lasso$auc 
+
+fit.roc.back<- roc(data.test$output, fit.back.test$fitted, plot=T, col="blue")
+fit.roc.back$auc 
+
+fit.final<- fit.logit.2
+summary(fit.final)
+
+fit.pred <- ifelse(fit.final$fitted > .5, "1", "0")
+cm <- table(fit.pred, data.train$output)
+mce <- ( cm[2,1] + 2 * cm[1,2])/length(data.train$output)
+mce
+
+```
+
+
+
+
+3) Based on a quick and somewhat arbitrary guess, we estimate **it costs twice as much** to mislabel a readmission than it does to mislabel a non-readmission. Based on this risk ratio, propose a specific classification rule to minimize the cost. If you find any information that could provide a better cost estimate, please justify it in your write-up and use the better estimate in your answer.
+
+```{r}
+
+
+fit.pred <- ifelse(fit.final$fitted > .33, "1", "0")
+cm <- table(fit.pred, data.train$output)
+mce <- ( cm[2,1] + 2 * cm[1,2])/length(data.train$output)
+mce
+
+
+
+
+```
+
+Suggestion: You may use any of the methods covered so far in parts 1) and 2), and they need not be the same. Also keep in mind that a training/testing data split may be necessary. 
+
+# The write up
+
+As you all know, it is very important to present your findings well. To achieve the best possible results you need to understand your audience. 
+
+Your target audience is a manager within the hospital organization. They hold an MBA, are familiar with medical terminology (though you do not need any previous medical knowledge), and have gone through a similar course to our Modern Data Mining with someone like your professor. You can assume thus some level of technical familiarity, but should not let the paper be bogged down with code or other difficult to understand output.
+
+Note then that the most important elements of your report are the clarity of your analysis and the quality of your proposals. 
+
+A suggested outline of the report would include the following components: 
+
+1) Executive Summary
+
+* This section should be accessible by people with very little statistical background (avoid using technical words and no direct R output is allowed)
+* Give a background of the study. You may check the original website or other sources to fill in some details, such as to why the questions we address here are important. 
+* A quick summary about the data.
+* Methods used and the main findings.
+* You may use clearly labelled and explained visualizations.
+* Issues, concerns, limitations of the conclusions. This is an especially important section to be honest in - we might be Penn students, but we are statisticians today.
+
+2) Detailed process of the analysis
+
+i) Data Summary /EDA
+
+* Nature of the data, origin
+* Necessary quantitative and graphical summaries
+* Are there any problems with the data?
+* Which variables are considered as input 
+	
+ii) Analyses
+
+* Various appropriate statistical methods: e.g. glmnet and/or trees
+* Comparisons various models
+* Final model(s)
+
+iii) Conclusion
+
+* Summarize results and the final model
+* Final recommendations
+
+Maintain a good descriptive flow in the text of your report. Use Appendices to display lengthy output. 
+
+iii) Appendix
+	
+* Any thing necessary to keep but for which you don’t want them to be in the main report.
+
+
+# Collaboration
+
+This is an **individual** assignment. We will only allow private Piazza posts for questions. If there are questions that are generally useful, we will release that information.
