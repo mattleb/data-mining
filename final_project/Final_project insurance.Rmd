@@ -31,6 +31,7 @@ if(!require("pacman")) install.packages("pacman")
 if(!require("pROC")) install.packages("pROC")
 pacman::p_load(dplyr, ggplot2, glmnet, car, corrplot)
 library(pROC)
+library(devtools)
 ```
 
 
@@ -84,6 +85,8 @@ View (data)
 
 
 #RESPONSE VARIABLE - convert the response variable to a factor and rename it to "policy.output" for convenience
+
+data <- na.omit(data.main)
 data <- data %>% rename(policy.output = No..of.mobile.home.policies ) 
 data <- data %>% mutate(policy.output = as.factor(policy.output))
 ggplot(data,aes(x=policy.output)) + geom_bar() + labs(x="No. of mobile home policies ")
@@ -93,8 +96,10 @@ ggplot(data,aes(x=policy.output)) + geom_bar() + labs(x="No. of mobile home poli
 #to determine which variables should be considered ion our model, we plot each variable and see if there is 1) enough variability within the variable, and 2) a hint of correlation with our output variable (policy.output)
 
 # Var 44 (pr_num) is ignored for this analysis as it is an accounting or idenitification variable, and therefore logically cannot have any predictive power
+```
 
 
+```{r}
 # ANALYZING VARIABLE 1&2 - The Customer types
 head(data$Customer.main.type)
 head(data$Customer.Subtype)
@@ -102,10 +107,13 @@ head(data$Customer.Subtype)
 data$Customer.main.type <- as.factor(data$Customer.main.type)
 data$Customer.Subtype <- as.factor(data$Customer.Subtype)
 #Plot these varaibles, check if they have any correlation with the output varaible, and check if there is significant internal variation
+```
+
+```{r}
 plot<-ggplot(data,aes(x=Customer.main.type, fill= policy.output))
 plot<-plot + geom_bar()
 plot<-plot + labs(x="Customer Main Type")
-plot
+
 #There is reasonable variation, all levels are represented. This varaible should be left as is
 plot<-ggplot(data,aes(x=Customer.Subtype, fill= policy.output))
 plot<-plot + geom_bar()
@@ -139,6 +147,9 @@ data$Avg.age <- factor(data$Avg.age,
                               "50-60 years",
                               "60-70 years",
                               "70-80 years"))
+```
+
+```{r}
 #PLOT data
 plot<-ggplot(data,aes(x=Avg.age, fill= policy.output))
 plot<-plot + geom_bar()
@@ -164,8 +175,9 @@ for (i in which(colnames(data)=="Roman.catholic"):which(colnames(data)=="Income.
                             "100%"))
 }
 str(data)
+```
 
-
+```{r}
 #Variables Average.income and Purchasing.power.class are written as percentages as per the dataset, however, this must be a error as Income should be factored on the various income levels. Therefore, we will code them as per the Levels in Table L4 (see appendix)
 for (i in which(colnames(data)=="Average.income"):which(colnames(data)=="Purchasing.power.class"))
   {
@@ -189,7 +201,15 @@ str(data)
 sum(is.na(data))
 #50 NA varaibles, which are not coded properly, so can be removed.
 data <- na.omit(data.main)
+```
 
+```{r}
+#Certain demographic and behavioral factors are another great place to explore. 
+#Among the demographic factors, we thought religion, marital status,level of education, occupation, and social class would be influential in predicting the response variable
+#Among the behavioral factors, such as contribution to and number of other insurance, may be influential as well 
+```
+
+```{r}
 #Varaibles 6-9 are all linked to religion, let us interpret them together
 JUST.FOR.PLOT <- rbind(data.frame(dataset="Roman catholic", obs=data$Roman.catholic),
             data.frame(dataset="Protestant", obs=data$Protestant),
@@ -210,25 +230,59 @@ ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() +
 ggtitle("Histogram with distribution of Marital status")
 #We can see there is significant variation between each type of marital status, and therefore these varaibles should be left as is  
 
+```
 
+```{r}
+#histogram by education
+JUST.FOR.PLOT <- rbind(data.frame(dataset="High level education", obs=data$High.level.education),
+            data.frame(dataset="Medium level education", obs=data$Medium.level.education),
+            data.frame(dataset="Lower level education", obs=data$Lower.level.education)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution of Education Level")
+
+#histogram by occulpation
+JUST.FOR.PLOT <- rbind(data.frame(dataset="High status", obs=data$High.status),
+            data.frame(dataset="Entrepreneur", obs=data$Entrepreneur),
+            data.frame(dataset="Farmer", obs=data$Farmer),
+            data.frame(dataset="Middle Management", obs=data$Middle.management),
+            data.frame(dataset="Skilled labourers", obs=data$Skilled.labourers),
+            data.frame(dataset="Unskilled labourers", obs=data$Unskilled.labourers)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution by Occupation")
+
+#histogram by social class
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Social class A", obs=data$Social.class.A),
+            data.frame(dataset="Social class B1", obs=data$Social.class.B1),
+            data.frame(dataset="Social class B2", obs=data$Social.class.B2),
+            data.frame(dataset="Social class C", obs=data$Social.class.C),
+            data.frame(dataset="Social class D", obs=data$Social.class.D)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution by Social Class")
+
+#histogram by Income
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Income<30", obs=data$Income...30),
+            data.frame(dataset="Income 30-45,000", obs=data$Income.30.45.000),
+            data.frame(dataset="Income 45-75,000", obs=data$Income.45.75.000),
+            data.frame(dataset="Income 75-122,000", obs=data$Income.75.122.000),
+            data.frame(dataset="Income>123,000", obs=data$Income..123.000)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution by Income")
 
 
 ```
-
-
-
 
 ## Split dataset into test and training 
 
 
 ```{r}
-
-
-
-#Let us do a correlation plot to check if any two variables are highly correlated
-corrplot(cor(data.main %>% select(time_in_hospital, num_lab_procedures, num_procedures, num_medications, number_outpatient, number_emergency, number_inpatient, number_diagnoses)))
-#Only number of medications and time in hospital are  correlated, which makes logical sense as a patient with more time in hospital is likely to have got more treatment, so we can keep both variables in consideration
-
 
 #split the training and test data sets, so we can proceed with analysis on training data set, and check our accuracy on the test data set
 N <- length(data$pr_num)
