@@ -214,8 +214,8 @@ plot
 
 ```{r}
 #Certain demographic and behavioral factors are another great place to explore. 
-#Among the demographic factors, we thought religion, marital status,level of education, occupation, and social class would be influential in predicting the response variable
-#Among the behavioral factors, such as contribution to and number of other insurance, may be influential as well 
+#Among the demographic factors, we thought religion, marital status, level of education, occupation, and social class would be influential in predicting the response variable
+#Among the behavioral factors, variables such as contribution/spend and a number of other insurance variables may be influential as well 
 ```
 
 ```{r}
@@ -251,7 +251,7 @@ JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
 ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
 ggtitle("Histogram with distribution of Education Level")
 
-#histogram by occulpation
+#histogram by occupation
 JUST.FOR.PLOT <- rbind(data.frame(dataset="High status", obs=data$High.status),
             data.frame(dataset="Entrepreneur", obs=data$Entrepreneur),
             data.frame(dataset="Farmer", obs=data$Farmer),
@@ -306,3 +306,32 @@ str(data.train)
 ```
 
 ## Model Building
+
+```{r}
+#First, we prepare the design matrix and response
+X <- model.matrix(policy.output~., data.train)[,-1]
+dim(X)
+#View(X)
+
+Y <- data.train[, 87]
+```
+
+```{r}
+# LASSO technique
+set.seed(10) # to have same sets of K folds
+fit1.cv <- cv.glmnet(X, Y, alpha=1, family="binomial", nfolds = 10, type.measure = "deviance")  
+plot(fit1.cv)
+coef.min <-coef(fit1.cv, s="lambda.min") 
+coef.min <- coef.min[which(coef.min !=0), ]
+as.matrix(coef.min)
+```
+
+```{r}
+# Next, we use glm() with the variables obtained from LASSO above. Also we will bring back each factor as an input instead of factor levels output from LASSO. For example "Customer.main.type4" and "Customer.main.type5" are returned by LASSO but we will input Customer.main.type into glm()
+beta.min <- rownames(as.matrix(coef.min))
+beta.min
+
+# Create the logistic regression summary
+fit.logit.1 <- glm(policy.output~Customer.main.type+Customer.Subtype+Avg.age+Roman.catholic+Protestant+Other.religion+No.religion+Married+Living.together+Other.relation+Singles+Household.without.children+Household.with.children+High.level.education+Medium.level.education+Lower.level.education+High.status+Entrepreneur+Farmer+Middle.management+Skilled.labourers+Unskilled.labourers+Social.class.A+Social.class.B1+Social.class.B2+Social.class.C+Social.class.D+Rented.house+Home.owners+X1.car+No.car+National.Health.Service+Private.health.insurance+Income...30+Income.30.45.000+Income.45.75.000+Income.75.122.000+Income..123.000+Average.income+Purchasing.power.class+Contribution.private.third.party.insurance+Contribution.third.party.insurance..firms.+Contribution.third.party.insurane..agriculture.+Contribution.car.policies+Contribution.motorcycle.scooter.policies+Contribution.lorry.policies+Contribution.agricultural.machines.policies+Contribution.private.accident.insurance.policies+Contribution.family.accidents.insurance.policies+Contribution.fire.policies+Contribution.surfboard.policies+Contribution.boat.policies+Contribution.property.insurance.policies+Contribution.social.security.insurance.policies+No..of.3rd.party.insurane..agriculture.+No..of.delivery.van.policies+No..of.lorry.policies+No..of.tractor.policies+No..of.moped.policies+No..of.surfboard.policies+No..of.boat.policies+No..of.bicycle.policies, family=binomial, data=data.train)
+summary(fit.logit.1)
+```
