@@ -2,10 +2,10 @@
 title: "Predicting insurance purchase for Indian farmers"
 graphics: yes
 output:
-  word_document:
+  pdf_document:
     toc: yes
     toc_depth: '4'
-  pdf_document:
+  word_document:
     toc: yes
     toc_depth: '4'
   html_document:
@@ -86,14 +86,13 @@ View (data)
 
 #RESPONSE VARIABLE - convert the response variable to a factor and rename it to "policy.output" for convenience
 
-data <- na.omit(data.main)
 data <- data %>% rename(policy.output = No..of.mobile.home.policies ) 
 data <- data %>% mutate(policy.output = as.factor(policy.output))
 ggplot(data,aes(x=policy.output)) + geom_bar() + labs(x="No. of mobile home policies ")
 #There is about a 2/3rd split in response variable i.e. 1/3rd of the data population has a mobile policy
 
 
-#to determine which variables should be considered ion our model, we plot each variable and see if there is 1) enough variability within the variable, and 2) a hint of correlation with our output variable (policy.output)
+#to determine which variables should be considered in our model, we plot each variable and see if there is 1) enough variability within the variable, and 2) a hint of correlation with our output variable (policy.output)
 
 # Var 44 (pr_num) is ignored for this analysis as it is an accounting or idenitification variable, and therefore logically cannot have any predictive power
 ```
@@ -110,15 +109,18 @@ data$Customer.Subtype <- as.factor(data$Customer.Subtype)
 ```
 
 ```{r}
+#Analyze main customer type
 plot<-ggplot(data,aes(x=Customer.main.type, fill= policy.output))
 plot<-plot + geom_bar()
 plot<-plot + labs(x="Customer Main Type")
+plot
+#There is reasonable variation across customer types; this varaible should be left as is
 
-#There is reasonable variation, all levels are represented. This varaible should be left as is
+#Analyze customer subtype
 plot<-ggplot(data,aes(x=Customer.Subtype, fill= policy.output))
 plot<-plot + geom_bar()
 plot
-#There is reasonable variation, all levels are represented. This varaible should be left as is
+#There is reasonable variation across customer subtypes; all levels are represented. This varaible should be left as is
 
 #Analyzing var 3- number of houses
 head(data$Number.of.houses)
@@ -134,7 +136,7 @@ head(data$Avg.size.household)
 plot<-ggplot(data,aes(x=Avg.size.household, fill= policy.output))
 plot<-plot + geom_bar()
 plot
-#Data is normal and has significant variation, leave the variable as is
+#Data is normal and has significant variation, so leave the variable as is
 
 #Analyzing var 5- avg age
 head(data$Avg.age)
@@ -150,16 +152,16 @@ data$Avg.age <- factor(data$Avg.age,
 ```
 
 ```{r}
-#PLOT data
+#Plot age data
 plot<-ggplot(data,aes(x=Avg.age, fill= policy.output))
 plot<-plot + geom_bar()
 plot
-#Data is normal and has significant variation, and is not interpretable. We can move on
+#Data is normal and has approximately normal distribution; we can move on
 
-data$Roman.catholic
-data$Income..123.000
+head(data$Roman.catholic)
+head(data$Income..123.000)
 
-#Variable 6-41 are variables with similar factor values (% of society). All of them are clearly factors, and the factor levels should be recoded to the %of society values for interpretability
+#Variable 6-41 are variables with similar factor values (% of society). All of them are clearly factors, and the factor levels should be recoded to the '% of society' values for interpretability
 for (i in which(colnames(data)=="Roman.catholic"):which(colnames(data)=="Income..123.000")){
   data[,i] <- factor(data[,i],
                    levels=c(0:9),
@@ -182,25 +184,32 @@ str(data)
 for (i in which(colnames(data)=="Average.income"):which(colnames(data)=="Purchasing.power.class"))
   {
   data[,i] <- factor(data[,i],
-                   levels=c(0:8),
+                   levels=c(0:9),
                    labels=c("RS 0",
-                            "Rs 1 - 49",
+                            "RS 1 - 49",
                             "RS 50 - 99",
-                            "Rs 100 - 199",
+                            "RS 100 - 199",
                             "RS 200 - 499",
                             "RS 500 - 999",
                             "RS 1000 - 4999",
                             "RS 5000 - 9999",
-                            "RS 10000 - 19999"
+                            "RS 10000 - 19999",
+                            "RS >20000"
                             ))
 }
 str(data)
 
+#Plot income
+plot<-ggplot(data,aes(x=Average.income, fill= policy.output))
+plot<-plot + geom_bar()
+plot
+#Data is normal and has approximately normal distribution; we notice that, at first glance, it appears that higher income families are more likely to purchase insurance. We will keep this in mind as we continue the analysis.
 
-#If any entry was not in the 0-9 range, it must be coded incorrectly, and would appear as NA now. Let us check if there are any NAs
-sum(is.na(data))
-#50 NA varaibles, which are not coded properly, so can be removed.
-data <- na.omit(data.main)
+#Plot purchasing power
+plot<-ggplot(data,aes(x=Purchasing.power.class, fill= policy.output))
+plot<-plot + geom_bar()
+plot
+#No concerns with the distribution
 ```
 
 ```{r}
