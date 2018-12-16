@@ -1,0 +1,458 @@
+---
+title: "Predicting insurance purchase for Indian farmers"
+graphics: yes
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+  word_document:
+    toc: yes
+    toc_depth: '4'
+  html_document:
+    code_folding: show
+    highlight: haddock
+    theme: lumen
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+subtitle: STAT 471/571/701, Fall 2018
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyfoot[CO,CE]{}
+- \fancyfoot[LE,RO]{\thepage}
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      tidy = TRUE, fig.width = 7, fig.height = 4,
+                      fig.align='left', dev = 'pdf')
+if(!require("pacman")) install.packages("pacman")
+if(!require("pROC")) install.packages("pROC")
+if(!require("devtools")) install.packages("devtools")
+if(!require("ranger")) install.packages("ranger")
+if(!require("randomForest")) install.packages("randomForest")
+if(!require("tree")) install.packages("tree")
+if(!require("leaps")) install.packages("leaps")
+pacman::p_load(dplyr, ggplot2, glmnet, car, corrplot)
+library(pROC)
+library(devtools)
+library(rpart)
+library(ranger)
+library(randomForest)
+library(tree)
+```
+```{r}
+caravan_kaggle<- read.csv("caravan-insurance-challenge.csv", header = T)
+```
+```{r}
+summary(caravan_kaggle)
+```
+```{r}
+str(caravan_kaggle)
+```
+```{r}
+#These are factors as per the table. It may help in interpretation to rename the variable's levels. It is misleading, for example, for the age to be 1,2,3.. as it may be interpreted as integers. So we name the levels to the meaning of each factor (in appendix)
+
+#refactoring
+caravan_kaggle$MOSTYPE <- factor(caravan_kaggle$MOSTYPE,
+                              levels=c(1:41),
+                              labels=c("High Income, expensive child",
+                                       "Very Important Provincials",
+                                       "High status seniors",
+                                       "Affluent senior apartments",
+                                       "Mixed seniors",
+                                       "Career and childcare",
+                                       "Dinki's (Double income no kids)",
+                                       "Middle class families",
+                                       "Modern, complete families",
+                                       "Stable family","Family starters",
+                                       "Affluent young families",
+                                       "Young all american family",
+                                       "Junior cosmopolitans",
+                                       "Senior cosmopolitans",
+                                       "Students in apartments",
+                                       "Fresh masters in the city",
+                                       "Single youth",
+                                       "Suburban youth",
+                                       "Ethnically diverse",
+                                       "Young urban have-nots",
+                                       "Mixed apartment dwellers",
+                                       "Young and rising", 
+                                       "Young, low educated", 
+                                       "Yound seniros in the city",
+                                       "Own home elderly",
+                                       "Seniors in apartments",
+                                       "Residential elderly",
+                                       "Porchless seniors: no front yard",
+                                       "Religious elderly singles",
+                                       "Low income catholics",
+                                       "Mixed seniors2",
+                                       "Lower class large families",
+                                       "Large family,employed child",
+                                       "Village families",
+                                       "Couples with teens 'Married with children'",
+                                       "Mixed small town dwellers",
+                                       "Traditional families",
+                                       "Large religous families",
+                                       "Large family farms",
+                                       "Mixed rurals"))
+
+#Average Age Refactor
+caravan_kaggle$MGEMLEEF <- factor(caravan_kaggle$MGEMLEEF,
+                     levels=c(1:6),
+                     labels=c("20-30 years",
+                              "30-40 years",
+                              "40-50 years",
+                              "50-60 years",
+                              "60-70 years",
+                              "70-80 years")) 
+
+#Custom Main Type Refactor
+caravan_kaggle$MOSHOOFD <- factor(caravan_kaggle$MOSHOOFD,
+                                levels=(1:10),
+                                labels=c("Successful hedonists",
+                                         "Driven Growers",
+                                         "Average Family",
+                                         "Career Loners",
+                                         "Living well",
+                                         "Cruising Seniors",
+                                         "Retired and Religious",
+                                         "Family with grown ups",
+                                         "Conservatie Families",
+                                         "Farmers"))
+```
+```{r}
+#Percentages Refactor
+for (i in which(colnames(caravan_kaggle)=="MGODRK"):which(colnames(caravan_kaggle)=="MKOOPKLA")){
+  caravan_kaggle[,i] <- factor(caravan_kaggle[,i],
+                   levels=c(0:9),
+                   labels=c("0%",
+                            "1-10%",
+                            "11-23%",
+                            "24-36%",
+                            "37-49%",
+                            "50-62%",
+                            "63-75%",
+                            "76-88%",
+                            "89-99%",
+                            "100%"))
+}
+```
+```{r}
+#Number of Refactor
+for (i in which(colnames(caravan_kaggle)=="PWAPART"):which(colnames(caravan_kaggle)=="ABYSTAND")){
+  caravan_kaggle[,i] <- factor(caravan_kaggle[,i],
+                   levels=c(0:9),
+                   labels=c("0",
+                            "1-49",
+                            "50-99",
+                            "100-199",
+                            "200-499",
+                            "500-999",
+                            "1000-4999",
+                            "5000-9999",
+                            "10,000-19,999",
+                            ">=20,000"))
+}
+
+#Set class label as factor 
+caravan_kaggle$CARAVAN <- factor(caravan_kaggle$CARAVAN,levels=c("0","1"))
+```
+```{r}
+#Remove empty rows
+sum(is.na(caravan_kaggle)) #find missing values
+caravan_kaggle<-caravan_kaggle[complete.cases(caravan_kaggle),]
+```
+```{r}
+#Remove ORIGIN
+caravan_kaggle<-caravan_kaggle[,-1]
+```
+
+## EDA section
+```{r}
+str(caravan_kaggle)
+
+#RESPONSE VARIABLE
+ggplot(caravan_kaggle,aes(x=CARAVAN)) + geom_bar() + labs(x="No. of mobile home policies ")
+#There is about a 80/20 split in response variable i.e. approx. 20% of the data population has a mobile policy
+
+#to determine which variables should be considered in our model, we plot each variable and see if there is 1) enough variability within the variable, and 2) a hint of correlation with our output variable (policy.output)
+
+# Var 44 (pr_num) is ignored for this analysis as it is an accounting or idenitification variable, and therefore logically cannot have any predictive power
+
+#Analyze main customer type
+plot<-ggplot(caravan_kaggle,aes(x=MOSTYPE, fill= CARAVAN))
+plot<-plot + geom_bar()
+plot<-plot + labs(x="Customer Main Type")
+plot
+#There is reasonable variation across customer types; this varaible should be left as is
+
+#Analyze customer subtype
+plot<-ggplot(caravan_kaggle,aes(x=MOSHOOFD, fill= CARAVAN))
+plot<-plot + geom_bar()
+plot
+#There is reasonable variation across customer subtypes; all levels are represented. This varaible should be left as is
+
+
+#Analyzing var 4- avg size household
+plot<-ggplot(caravan_kaggle,aes(x=MGEMOMV, fill= CARAVAN))
+plot<-plot + geom_bar()
+plot
+#Data is normal and has significant variation, so leave the variable as is
+
+```
+
+```{r}
+#Plot age data
+plot<-ggplot(caravan_kaggle,aes(x=MGEMLEEF, fill= CARAVAN))
+plot<-plot + geom_bar()
+plot
+#Data is normal and has approximately normal distribution; we can move on
+
+```
+
+```{r}
+
+#Plot income
+plot<-ggplot(caravan_kaggle,aes(x=MINKGEM, fill= CARAVAN))
+plot<-plot + geom_bar()
+plot
+#Data is normal and has approximately normal distribution; we notice that, at first glance, it appears that higher income families are more likely to purchase insurance. We will keep this in mind as we continue the analysis.
+
+#Plot purchasing power
+plot<-ggplot(caravan_kaggle,aes(x=MKOOPKLA, fill= CARAVAN))
+plot<-plot + geom_bar()
+plot
+#No concerns with the distribution
+```
+
+```{r}
+#Certain demographic and behavioral factors are another great place to explore. 
+#Among the demographic factors, we thought religion, marital status, level of education, occupation, and social class would be influential in predicting the response variable
+#Among the behavioral factors, variables such as contribution/spend and a number of other insurance variables may be influential as well 
+```
+
+```{r}
+#Varaibles 6-9 are all linked to religion, let us interpret them together
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Roman catholic", obs=caravan_kaggle$MGODRK),
+            data.frame(dataset="Protestant", obs=caravan_kaggle$MGODPR),
+            data.frame(dataset="Other ", obs=caravan_kaggle$MGODOV),
+            data.frame(dataset="None", obs=caravan_kaggle$MGODGE))
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution of Religion")
+#We can see there is significant variation between each type of religion, and therefore these varaibles should be left as is  
+
+#Variables 10-13 are all linked to Marital status, let us interpret them together
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Married", obs=caravan_kaggle$MRELGE),
+            data.frame(dataset="Living together", obs=caravan_kaggle$MRELSA),
+            data.frame(dataset="Other relation ", obs=caravan_kaggle$MRELOV),
+            data.frame(dataset="Singles", obs=caravan_kaggle$MFALLEEN))
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution of Marital status")
+#We can see there is significant variation between each type of marital status, and therefore these varaibles should be left as is  
+
+```
+
+```{r}
+#histogram by education
+JUST.FOR.PLOT <- rbind(data.frame(dataset="High level education", obs=caravan_kaggle$MOPLHOOG),
+            data.frame(dataset="Medium level education", obs=caravan_kaggle$MOPLMIDD),
+            data.frame(dataset="Lower level education", obs=caravan_kaggle$MOPLLAAG)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution of Education Level")
+
+#histogram by occupation
+JUST.FOR.PLOT <- rbind(data.frame(dataset="High status", obs=caravan_kaggle$MBERHOOG),
+            data.frame(dataset="Entrepreneur", obs=caravan_kaggle$MBERZELF),
+            data.frame(dataset="Farmer", obs=caravan_kaggle$MBERBOER),
+            data.frame(dataset="Middle Management", obs=caravan_kaggle$MBERMIDD),
+            data.frame(dataset="Skilled labourers", obs=caravan_kaggle$MBERARBG),
+            data.frame(dataset="Unskilled labourers", obs=caravan_kaggle$MBERARBO)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution by Occupation")
+
+#histogram by social class
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Social class A", obs=caravan_kaggle$MSKA),
+            data.frame(dataset="Social class B1", obs=caravan_kaggle$MSKB1),
+            data.frame(dataset="Social class B2", obs=caravan_kaggle$MSKB2),
+            data.frame(dataset="Social class C", obs=caravan_kaggle$MSKC),
+            data.frame(dataset="Social class D", obs=caravan_kaggle$MSKD)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution by Social Class")
+
+#histogram by Income
+JUST.FOR.PLOT <- rbind(data.frame(dataset="Income<30", obs=caravan_kaggle$MINKM30),
+            data.frame(dataset="Income 30-45,000", obs=caravan_kaggle$MINK3045),
+            data.frame(dataset="Income 45-75,000", obs=caravan_kaggle$MINK4575),
+            data.frame(dataset="Income 75-122,000", obs=caravan_kaggle$MINK7512),
+            data.frame(dataset="Income>123,000", obs=caravan_kaggle$MINK123M)
+            )
+JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
+ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
+ggtitle("Histogram with distribution by Income")
+
+
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+#Splitting into training and testing data
+set.seed(123)
+n <- nrow(caravan_kaggle)
+n1 <- (2/3)*n
+train_index <- sample(n, n1, replace=FALSE)
+length(train_index)
+ctrain <- caravan_kaggle[train_index, ]
+ctest <- caravan_kaggle[-train_index, ]
+dim(ctrain)
+dim(ctest)
+```
+
+```{r}
+# Create full logistic regression model
+fit.logit.0 <- glm(CARAVAN~., family=binomial, data=ctrain)
+summary(fit.logit.0)
+
+# Get ROC and AUC
+prob=predict(fit.logit.0,type=c("response"))
+ctrain$prob=prob
+library(pROC)
+g <- roc(CARAVAN ~ prob, data = ctrain)
+g
+plot(g)
+
+# Incorporate loss of 0.2 since we are much more comfortable marketing to those who are less likely to purchase than missing people who may have bought insurance
+fit.pred.2 <- rep("0", 5822)
+fit.pred.2[fit.logit.0$fitted > .2] <- "1"
+
+# Find MCE
+MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2
+```
+
+```{r}
+# Logistic with backward selection
+ctrain <- ctrain[-87] #delete "prob" column
+fit.backward <- regsubsets(CARAVAN ~., ctrain, nvmax=8, method="backward")
+f.b <- summary(fit.backward)
+f.b
+
+plot(f.b$cp,  col="red", type="p", pch=16,
+   xlab="Backward Selection")
+
+coef(fit.backward, 8)
+
+# Fit glm model
+fit.logit.1 <- glm(CARAVAN~MRELGE+MOPLLAAG+MBERBOER+PWALAND+PPERSAUT+PBRAND+APLEZIER+ABYSTAND, family=binomial, data=ctrain)
+
+# Get ROC and AUC
+prob=predict(fit.logit.1,type=c("response"))
+ctrain$prob=prob
+g <- roc(CARAVAN ~ prob, data = ctrain)
+g
+plot(g)
+
+# Incorporate loss of 0.2 since we are much more comfortable marketing to those who are less likely to purchase than missing people who may have bought insurance
+fit.pred.2 <- rep("0", 5822)
+fit.pred.2[fit.logit.1$fitted > .2] <- "1"
+
+# Find MCE
+MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2
+```
+
+```{r}
+# LASSO technique and elastic net
+# First, we prepare the design matrix and response
+X <- model.matrix(CARAVAN~., ctrain)[,-1]
+Y <- ctrain[, 86]
+
+set.seed(10) # to have same sets of K folds
+fit2.cv <- cv.glmnet(X, Y, alpha=1, family="binomial", nfolds = 10, type.measure = "deviance")  
+plot(fit2.cv)
+coef.min <-coef(fit2.cv, s="lambda.min") 
+coef.min <- coef.min[which(coef.min !=0), ]
+as.matrix(coef.min)
+
+# Next, we use glm() with the variables obtained from LASSO above
+beta.min <- rownames(as.matrix(coef.min))
+beta.min
+
+# Create the logistic regression summary
+fit.logit.2 <- glm(CARAVAN~MGEMLEEF+MGODRK+MGODPR+MGODGE+MRELGE+MRELSA+MOPLHOOG+MOPLLAAG+MBERBOER+MBERMIDD+MSKD+MHHUUR+MAUT1+MINKM30+MINK7512+MINK123M+MINKGEM+MKOOPKLA+PWAPART+PWALAND+PPERSAUT+PWERKT+PGEZONG+PWAOREG+PBRAND+PFIETS+ATRACTOR+AZEILPL+APLEZIER+AFIETS+ABYSTAND, family=binomial, data=ctrain)
+summary(fit.logit.2)
+
+# Get ROC and AUC
+prob=predict(fit.logit.2,type=c("response"))
+ctrain$prob=prob
+g <- roc(CARAVAN ~ prob, data = ctrain)
+g
+plot(g)
+
+# Incorporate loss of 0.2 since we are much more comfortable marketing to those who are less likely to purchase than missing people who may have bought insurance
+fit.pred.2 <- rep("0", 5822)
+fit.pred.2[fit.logit.2$fitted > .2] <- "1"
+
+# Find MCE
+MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2
+```
+
+```{r}
+#Building model on training data using randomForest package
+rf.train <- randomForest(CARAVAN~., ctrain) 
+plot(rf.train) #plotting the error vs number of trees to find optimal forest size
+```
+```{r}
+predict.rf.yvar <- predict(rf.train, newdata=ctest)   
+predict.rf.prob <- predict(rf.train, newdata=ctest, type="prob")  #predicting probabilities for ROC curve
+#Testing errors
+mean(ctest$CARAVAN != predict.rf.yvar) 
+roc(ctest$CARAVAN, predict.rf.prob[,2], plot=TRUE)
+```
+
+```{r}
+#Using ranger package since randomForest uses "majority vote" to grow the trees instead of offering customizability on Loss Function
+#Running on overall data to find out OOB Error
+library(ranger)
+rf.ranger <- ranger(CARAVAN~., caravan_kaggle, mtry = 9, 
+                    num.trees = 500, splitrule = "gini", importance = "impurity")
+rf.ranger$prediction.error ##OOB Error
+```
+```{r}
+#Using Test data for finding MCE/Testing Error
+rf.ranger.mce <- ranger(CARAVAN~., ctrain, mtry = 9, 
+                    num.trees = 500, splitrule = "gini", importance = "impurity")
+rf.range.pred.mce <- predict(rf.ranger.mce, ctest, type = "response")
+mean(ctest$CARAVAN != rf.range.pred.mce$predictions) ##Testing error
+```
+```{r}
+#ROC Curve and AUC
+rf.ranger.ROC <- ranger(CARAVAN~., ctrain, mtry = 9, 
+                    num.trees = 500, splitrule = "gini", importance = "impurity", probability = T)
+rf.ranger.pred.ROC <- predict(rf.ranger.ROC, ctest)$predictions[,1]
+roc(ctest$CARAVAN, rf.ranger.pred.ROC, plot=TRUE)
+```
+```{r}
+#Bayes Rule - Loss Function of 0.2
+rf.test <- predict(rf.ranger.ROC, ctest)
+rf.test.pred <- ifelse(rf.test$predictions[,2]<0.2,"0","1") #classifying probabilities less than 0.2 as 0, and rest as 1 
+mean(ctest$CARAVAN != rf.test.pred) #MCE in testing data = Testing Error with loss function of 0.2
+```
