@@ -415,12 +415,12 @@ MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctr
 MCE.2
 ```
 
+
 ```{r}
 #Building model on training data using randomForest package
 rf.train <- randomForest(CARAVAN~., ctrain) 
 plot(rf.train) #plotting the error vs number of trees to find optimal forest size
-```
-```{r}
+
 predict.rf.yvar <- predict(rf.train, newdata=ctest)   
 predict.rf.prob <- predict(rf.train, newdata=ctest, type="prob")  #predicting probabilities for ROC curve
 #Testing errors
