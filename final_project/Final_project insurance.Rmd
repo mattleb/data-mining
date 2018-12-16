@@ -2,12 +2,6 @@
 title: "Predicting insurance purchase for Indian farmers"
 graphics: yes
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
-  word_document:
-    toc: yes
-    toc_depth: '4'
   html_document:
     code_folding: show
     highlight: haddock
@@ -15,6 +9,12 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
 subtitle: STAT 471/571/701, Fall 2018
 header-includes:
 - \usepackage{fancyhdr}
@@ -32,142 +32,93 @@ if(!require("pROC")) install.packages("pROC")
 pacman::p_load(dplyr, ggplot2, glmnet, car, corrplot)
 library(pROC)
 library(devtools)
+library(rpart)
+library(ranger)
+library(randomForest)
+library(tree)
 ```
-
-
-
-# Introduction
-
-## Background
-
-
-## Goal of the study
-
-
-## The data
-
-
-
-### Characteristics of the Data Set
-
-
-### Description of variables
-
-
-# Research approach
-
-
-## Analyses of dataset
-
-
 ```{r}
-
-# rm(list = ls())
-
-data.main<- read.csv("insurance_dataset.csv", header = T)
-
-str(data.main)
-
-#find out if dataset has missing values
-sum(is.na(data.main))
-
-#analyze which columns,rows have missing values
-
-
-#it seems there are empty rows at the bottom of the dataset, so these can simply be deleted
-data <- na.omit(data.main) #there are empty rows in the dataset, to omit these data 
-str(data)
-View (data)
-
+caravan_kaggle<- read.csv("caravan-insurance-challenge.csv", header = T)
 ```
-
-
-## EDA on variables in the dataset 
-
 ```{r}
-
-
-#RESPONSE VARIABLE - convert the response variable to a factor and rename it to "policy.output" for convenience
-
-data <- data %>% rename(policy.output = No..of.mobile.home.policies ) 
-data <- data %>% mutate(policy.output = as.factor(policy.output))
-ggplot(data,aes(x=policy.output)) + geom_bar() + labs(x="No. of mobile home policies ")
-#There is about a 2/3rd split in response variable i.e. 1/3rd of the data population has a mobile policy
-
-
-#to determine which variables should be considered in our model, we plot each variable and see if there is 1) enough variability within the variable, and 2) a hint of correlation with our output variable (policy.output)
-
-# Var 44 (pr_num) is ignored for this analysis as it is an accounting or idenitification variable, and therefore logically cannot have any predictive power
-data <- data[ , !(names(data) %in% "pr_num")]
+summary(caravan_kaggle)
 ```
-
-
 ```{r}
-# ANALYZING VARIABLE 1&2 - The Customer types
-head(data$Customer.main.type)
-head(data$Customer.Subtype)
-#These varaibles are clearly factors, which have been found from previous demographic and psychographic analysis of the customers. They should be converted to factors
-data$Customer.main.type <- as.factor(data$Customer.main.type)
-data$Customer.Subtype <- as.factor(data$Customer.Subtype)
-#Plot these varaibles, check if they have any correlation with the output varaible, and check if there is significant internal variation
+str(caravan_kaggle)
 ```
-
 ```{r}
-#Analyze main customer type
-plot<-ggplot(data,aes(x=Customer.main.type, fill= policy.output))
-plot<-plot + geom_bar()
-plot<-plot + labs(x="Customer Main Type")
-plot
-#There is reasonable variation across customer types; this varaible should be left as is
+#refactoring
+caravan_kaggle$MOSTYPE <- factor(caravan_kaggle$MOSTYPE,
+                              levels=c(1:41),
+                              labels=c("High Income, expensive child",
+                                       "Very Important Provincials",
+                                       "High status seniors",
+                                       "Affluent senior apartments",
+                                       "Mixed seniors",
+                                       "Career and childcare",
+                                       "Dinki's (Double income no kids)",
+                                       "Middle class families",
+                                       "Modern, complete families",
+                                       "Stable family","Family starters",
+                                       "Affluent young families",
+                                       "Young all american family",
+                                       "Junior cosmopolitans",
+                                       "Senior cosmopolitans",
+                                       "Students in apartments",
+                                       "Fresh masters in the city",
+                                       "Single youth",
+                                       "Suburban youth",
+                                       "Ethnically diverse",
+                                       "Young urban have-nots",
+                                       "Mixed apartment dwellers",
+                                       "Young and rising", 
+                                       "Young, low educated", 
+                                       "Yound seniros in the city",
+                                       "Own home elderly",
+                                       "Seniors in apartments",
+                                       "Residential elderly",
+                                       "Porchless seniors: no front yard",
+                                       "Religious elderly singles",
+                                       "Low income catholics",
+                                       "Mixed seniors2",
+                                       "Lower class large families",
+                                       "Large family,employed child",
+                                       "Village families",
+                                       "Couples with teens 'Married with children'",
+                                       "Mixed small town dwellers",
+                                       "Traditional families",
+                                       "Large religous families",
+                                       "Large family farms",
+                                       "Mixed rurals"))
 
-#Analyze customer subtype
-plot<-ggplot(data,aes(x=Customer.Subtype, fill= policy.output))
-plot<-plot + geom_bar()
-plot
-#There is reasonable variation across customer subtypes; all levels are represented. This varaible should be left as is
-
-#Analyzing var 3- number of houses
-head(data$Number.of.houses)
-#These are integer values
-plot<-ggplot(data,aes(x=Number.of.houses, fill= policy.output))
-plot<-plot + geom_bar()
-plot
-#Data is highly skewed, and could benefit from a log transformation, but since the number is so low (10), we can ignore the transformation to reduce complexity
-
-#Analyzing var 4- avg size household
-head(data$Avg.size.household)
-#These are integer values
-plot<-ggplot(data,aes(x=Avg.size.household, fill= policy.output))
-plot<-plot + geom_bar()
-plot
-#Data is normal and has significant variation, so leave the variable as is
-
-#Analyzing var 5- avg age
-head(data$Avg.age)
-#These are factors as per the table. It may help in interpretation to rename the variable's levels. It is misleading, in this case, for the age to be 1,2,3.. as it may be interpreted as integers. So we name the levels to the meaning of each factor (in appendix)
-data$Avg.age <- factor(data$Avg.age,
+#Average Age Refactor
+caravan_kaggle$MGEMLEEF <- factor(caravan_kaggle$MGEMLEEF,
                      levels=c(1:6),
                      labels=c("20-30 years",
                               "30-40 years",
                               "40-50 years",
                               "50-60 years",
                               "60-70 years",
-                              "70-80 years"))
+                              "70-80 years")) 
+
+#Custom Main Type Refactor
+caravan_kaggle$MOSHOOFD <- factor(caravan_kaggle$MOSHOOFD,
+                                levels=(1:10),
+                                labels=c("Successful hedonists",
+                                         "Driven Growers",
+                                         "Average Family",
+                                         "Career Loners",
+                                         "Living well",
+                                         "Cruising Seniors",
+                                         "Retired and Religious",
+                                         "Family with grown ups",
+                                         "Conservatie Families",
+                                         "Farmers"))
 ```
-
 ```{r}
-#Plot age data
-plot<-ggplot(data,aes(x=Avg.age, fill= policy.output))
-plot<-plot + geom_bar()
-plot
-#Data is normal and has approximately normal distribution; we can move on
-
-head(data$Roman.catholic)
-head(data$Income..123.000)
-
-#Variable 6-41 are variables with similar factor values (% of society). All of them are clearly factors, and the factor levels should be recoded to the '% of society' values for interpretability
-for (i in which(colnames(data)=="Roman.catholic"):which(colnames(data)=="Income..123.000")){
-  data[,i] <- factor(data[,i],
+#Percentages Refactor
+for (i in which(colnames(caravan_kaggle)=="MGODRK"):which(colnames(caravan_kaggle)=="MKOOPKLA")){
+  caravan_kaggle[,i] <- factor(caravan_kaggle[,i],
                    levels=c(0:9),
                    labels=c("0%",
                             "1-10%",
@@ -180,164 +131,176 @@ for (i in which(colnames(data)=="Roman.catholic"):which(colnames(data)=="Income.
                             "89-99%",
                             "100%"))
 }
-str(data)
 ```
-
 ```{r}
-#Variables Average.income and Purchasing.power.class are written as percentages as per the dataset, however, this must be a error as Income should be factored on the various income levels. Therefore, we will code them as per the Levels in Table L4 (see appendix)
-for (i in which(colnames(data)=="Average.income"):which(colnames(data)=="Purchasing.power.class"))
-  {
-  data[,i] <- factor(data[,i],
+#Number of Refactor
+for (i in which(colnames(caravan_kaggle)=="PWAPART"):which(colnames(caravan_kaggle)=="ABYSTAND")){
+  caravan_kaggle[,i] <- factor(caravan_kaggle[,i],
                    levels=c(0:9),
-                   labels=c("RS 0",
-                            "RS 1 - 49",
-                            "RS 50 - 99",
-                            "RS 100 - 199",
-                            "RS 200 - 499",
-                            "RS 500 - 999",
-                            "RS 1000 - 4999",
-                            "RS 5000 - 9999",
-                            "RS 10000 - 19999",
-                            "RS >20000"
-                            ))
+                   labels=c("0",
+                            "1-49",
+                            "50-99",
+                            "100-199",
+                            "200-499",
+                            "500-999",
+                            "1000-4999",
+                            "5000-9999",
+                            "10,000-19,999",
+                            ">=20,000"))
 }
-str(data)
 
-#Plot income
-plot<-ggplot(data,aes(x=Average.income, fill= policy.output))
-plot<-plot + geom_bar()
-plot
-#Data is normal and has approximately normal distribution; we notice that, at first glance, it appears that higher income families are more likely to purchase insurance. We will keep this in mind as we continue the analysis.
-
-#Plot purchasing power
-plot<-ggplot(data,aes(x=Purchasing.power.class, fill= policy.output))
-plot<-plot + geom_bar()
-plot
-#No concerns with the distribution
+#Set class label as factor 
+caravan_kaggle$CARAVAN <- factor(caravan_kaggle$CARAVAN,levels=c("0","1"))
+```
+```{r}
+#Remove NA's
+caravan_kaggle<-caravan_kaggle[complete.cases(caravan_kaggle),]
+```
+```{r}
+#Remove ORIGIN
+caravan_kaggle<-caravan_kaggle[,-1]
+```
+```{r}
+#Splitting into training and testing data
+set.seed(123)
+n <- nrow(caravan_kaggle)
+n1 <- (2/3)*n
+train_index <- sample(n, n1, replace=FALSE)
+length(train_index)
+ctrain <- caravan_kaggle[train_index, ]
+ctest <- caravan_kaggle[-train_index, ]
+dim(ctrain)
+dim(ctest)
 ```
 
 ```{r}
-#Certain demographic and behavioral factors are another great place to explore. 
-#Among the demographic factors, we thought religion, marital status, level of education, occupation, and social class would be influential in predicting the response variable
-#Among the behavioral factors, variables such as contribution/spend and a number of other insurance variables may be influential as well 
+# Create full logistic regression model
+fit.logit.0 <- glm(CARAVAN~., family=binomial, data=ctrain)
+summary(fit.logit.0)
+
+# Get ROC and AUC
+prob=predict(fit.logit.0,type=c("response"))
+ctrain$prob=prob
+library(pROC)
+g <- roc(CARAVAN ~ prob, data = ctrain)
+g
+plot(g)
+
+# Incorporate loss of 0.2 since we are much more comfortable marketing to those who are less likely to purchase than missing people who may have bought insurance
+fit.pred.2 <- rep("0", 5822)
+fit.pred.2[fit.logit.0$fitted > .2] <- "1"
+
+# Find MCE
+MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2
 ```
 
 ```{r}
-#Varaibles 6-9 are all linked to religion, let us interpret them together
-JUST.FOR.PLOT <- rbind(data.frame(dataset="Roman catholic", obs=data$Roman.catholic),
-            data.frame(dataset="Protestant", obs=data$Protestant),
-            data.frame(dataset="Other ", obs=data$Other.religion),
-            data.frame(dataset="None", obs=data$No.religion))
-JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
-ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
-ggtitle("Histogram with distribution of Religion")
-#We can see there is significant variation between each type of religion, and therefore these varaibles should be left as is  
+# Logistic with backward selection
+ctrain <- ctrain[-87] #delete "prob" column
+fit.backward <- regsubsets(CARAVAN ~., ctrain, nvmax=8, method="backward")
+f.b <- summary(fit.backward)
+f.b
 
-#Variables 10-13 are all linked to Marital status, let us interpret them together
-JUST.FOR.PLOT <- rbind(data.frame(dataset="Married", obs=data$Married),
-            data.frame(dataset="Living together", obs=data$Living.together),
-            data.frame(dataset="Other relation ", obs=data$Other.relation),
-            data.frame(dataset="Singles", obs=data$Singles))
-JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
-ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
-ggtitle("Histogram with distribution of Marital status")
-#We can see there is significant variation between each type of marital status, and therefore these varaibles should be left as is  
+plot(f.b$cp,  col="red", type="p", pch=16,
+   xlab="Backward Selection")
 
+coef(fit.backward, 8)
+
+# Fit glm model
+fit.logit.1 <- glm(CARAVAN~MRELGE+MOPLLAAG+MBERBOER+PWALAND+PPERSAUT+PBRAND+APLEZIER+ABYSTAND, family=binomial, data=ctrain)
+
+# Get ROC and AUC
+prob=predict(fit.logit.1,type=c("response"))
+ctrain$prob=prob
+g <- roc(CARAVAN ~ prob, data = ctrain)
+g
+plot(g)
+
+# Incorporate loss of 0.2 since we are much more comfortable marketing to those who are less likely to purchase than missing people who may have bought insurance
+fit.pred.2 <- rep("0", 5822)
+fit.pred.2[fit.logit.1$fitted > .2] <- "1"
+
+# Find MCE
+MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2
 ```
 
 ```{r}
-#histogram by education
-JUST.FOR.PLOT <- rbind(data.frame(dataset="High level education", obs=data$High.level.education),
-            data.frame(dataset="Medium level education", obs=data$Medium.level.education),
-            data.frame(dataset="Lower level education", obs=data$Lower.level.education)
-            )
-JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
-ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
-ggtitle("Histogram with distribution of Education Level")
+# LASSO technique and elastic net
+# First, we prepare the design matrix and response
+X <- model.matrix(CARAVAN~., ctrain)[,-1]
+Y <- ctrain[, 86]
 
-#histogram by occupation
-JUST.FOR.PLOT <- rbind(data.frame(dataset="High status", obs=data$High.status),
-            data.frame(dataset="Entrepreneur", obs=data$Entrepreneur),
-            data.frame(dataset="Farmer", obs=data$Farmer),
-            data.frame(dataset="Middle Management", obs=data$Middle.management),
-            data.frame(dataset="Skilled labourers", obs=data$Skilled.labourers),
-            data.frame(dataset="Unskilled labourers", obs=data$Unskilled.labourers)
-            )
-JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
-ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
-ggtitle("Histogram with distribution by Occupation")
-
-#histogram by social class
-JUST.FOR.PLOT <- rbind(data.frame(dataset="Social class A", obs=data$Social.class.A),
-            data.frame(dataset="Social class B1", obs=data$Social.class.B1),
-            data.frame(dataset="Social class B2", obs=data$Social.class.B2),
-            data.frame(dataset="Social class C", obs=data$Social.class.C),
-            data.frame(dataset="Social class D", obs=data$Social.class.D)
-            )
-JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
-ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
-ggtitle("Histogram with distribution by Social Class")
-
-#histogram by Income
-JUST.FOR.PLOT <- rbind(data.frame(dataset="Income<30", obs=data$Income...30),
-            data.frame(dataset="Income 30-45,000", obs=data$Income.30.45.000),
-            data.frame(dataset="Income 45-75,000", obs=data$Income.45.75.000),
-            data.frame(dataset="Income 75-122,000", obs=data$Income.75.122.000),
-            data.frame(dataset="Income>123,000", obs=data$Income..123.000)
-            )
-JUST.FOR.PLOT$dataset <- as.factor(JUST.FOR.PLOT$dataset)
-ggplot(JUST.FOR.PLOT, aes(x=obs, fill=dataset)) +geom_bar() + 
-ggtitle("Histogram with distribution by Income")
-
-
-```
-
-## Split dataset into test and training 
-
-
-```{r}
-
-#split the training and test data sets, so we can proceed with analysis on training data set, and check our accuracy on the test data set
-N <- length(data$policy.output)
-set.seed(10)
-index.train <- sample(N, 0.8*N)
-data.train <- data[index.train,] #dim(data.train)
-data.test <- data[-index.train,] 
-dim(data.train)
-dim(data.test)
-str(data.train)
-
-```
-
-## Model Building
-
-```{r}
-#First, we prepare the design matrix and response
-X <- model.matrix(policy.output~., data.train)[,-1]
-dim(X)
-#View(X)
-
-Y <- data.train[, 86]
-```
-
-```{r}
-# LASSO technique
 set.seed(10) # to have same sets of K folds
-fit1.cv <- cv.glmnet(X, Y, alpha=1, family="binomial", nfolds = 10, type.measure = "deviance")  
-plot(fit1.cv)
-coef.min <-coef(fit1.cv, s="lambda.min") 
+fit2.cv <- cv.glmnet(X, Y, alpha=1, family="binomial", nfolds = 10, type.measure = "deviance")  
+plot(fit2.cv)
+coef.min <-coef(fit2.cv, s="lambda.min") 
 coef.min <- coef.min[which(coef.min !=0), ]
 as.matrix(coef.min)
-```
 
-```{r}
-# Next, we use glm() with the variables obtained from LASSO above. Also we will bring back each factor as an input instead of factor levels output from LASSO. For example "Customer.main.type4" and "Customer.main.type5" are returned by LASSO but we will input Customer.main.type into glm()
+# Next, we use glm() with the variables obtained from LASSO above
 beta.min <- rownames(as.matrix(coef.min))
 beta.min
 
 # Create the logistic regression summary
-fit.logit.1 <- glm(policy.output~Customer.main.type+Customer.Subtype+Avg.age+Roman.catholic+Protestant+Other.religion+No.religion+Married+Living.together+Other.relation+Singles+Household.without.children+Household.with.children+High.level.education+Medium.level.education+Lower.level.education+High.status+Entrepreneur+Farmer+Middle.management+Skilled.labourers+Unskilled.labourers+Social.class.A+Social.class.B1+Social.class.B2+Social.class.C+Social.class.D+Rented.house+Home.owners+X1.car+No.car+National.Health.Service+Private.health.insurance+Income...30+Income.30.45.000+Income.45.75.000+Income.75.122.000+Income..123.000+Average.income+Purchasing.power.class, family=binomial, data=data.train)
+fit.logit.2 <- glm(CARAVAN~MGEMLEEF+MGODRK+MGODPR+MGODGE+MRELGE+MRELSA+MOPLHOOG+MOPLLAAG+MBERBOER+MBERMIDD+MSKD+MHHUUR+MAUT1+MINKM30+MINK7512+MINK123M+MINKGEM+MKOOPKLA+PWAPART+PWALAND+PPERSAUT+PWERKT+PGEZONG+PWAOREG+PBRAND+PFIETS+ATRACTOR+AZEILPL+APLEZIER+AFIETS+ABYSTAND, family=binomial, data=ctrain)
+summary(fit.logit.2)
 
-summary(fit.logit.1)
+# Get ROC and AUC
+prob=predict(fit.logit.2,type=c("response"))
+ctrain$prob=prob
+g <- roc(CARAVAN ~ prob, data = ctrain)
+g
+plot(g)
 
+# Incorporate loss of 0.2 since we are much more comfortable marketing to those who are less likely to purchase than missing people who may have bought insurance
+fit.pred.2 <- rep("0", 5822)
+fit.pred.2[fit.logit.2$fitted > .2] <- "1"
+
+# Find MCE
+MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2
+```
+
+```{r}
+#Building model on training data using randomForest package
+rf.train <- randomForest(CARAVAN~., ctrain) 
+plot(rf.train) #plotting the error vs number of trees to find optimal forest size
+```
+```{r}
+predict.rf.yvar <- predict(rf.train, newdata=ctest)   
+predict.rf.prob <- predict(rf.train, newdata=ctest, type="prob")  #predicting probabilities for ROC curve
+#Testing errors
+mean(ctest$CARAVAN != predict.rf.yvar) 
+roc(ctest$CARAVAN, predict.rf.prob[,2], plot=TRUE)
+```
+
+```{r}
+#Using ranger package since randomForest uses "majority vote" to grow the trees instead of offering customizability on Loss Function
+#Running on overall data to find out OOB Error
+library(ranger)
+rf.ranger <- ranger(CARAVAN~., caravan_kaggle, mtry = 9, 
+                    num.trees = 500, splitrule = "gini", importance = "impurity")
+rf.ranger$prediction.error ##OOB Error
+```
+```{r}
+#Using Test data for finding MCE/Testing Error
+rf.ranger.mce <- ranger(CARAVAN~., ctrain, mtry = 9, 
+                    num.trees = 500, splitrule = "gini", importance = "impurity")
+rf.range.pred.mce <- predict(rf.ranger.mce, ctest, type = "response")
+mean(ctest$CARAVAN != rf.range.pred.mce$predictions) ##Testing error
+```
+```{r}
+#ROC Curve and AUC
+rf.ranger.ROC <- ranger(CARAVAN~., ctrain, mtry = 9, 
+                    num.trees = 500, splitrule = "gini", importance = "impurity", probability = T)
+rf.ranger.pred.ROC <- predict(rf.ranger.ROC, ctest)$predictions[,1]
+roc(ctest$CARAVAN, rf.ranger.pred.ROC, plot=TRUE)
+```
+```{r}
+#Bayes Rule - Loss Function of 0.2
+rf.test <- predict(rf.ranger.ROC, ctest)
+rf.test.pred <- ifelse(rf.test$predictions[,2]<0.2,"0","1") #classifying probabilities less than 0.2 as 0, and rest as 1 
+mean(ctest$CARAVAN != rf.test.pred) #MCE in testing data = Testing Error with loss function of 0.2
 ```
