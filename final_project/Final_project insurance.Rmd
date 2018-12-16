@@ -174,15 +174,21 @@ dim(ctest)
 ```
 
 ```{r}
+caravan_kaggle_2<- read.csv("caravan-insurance-challenge.csv", header = T)
+caravan.train <- caravan_kaggle_2[caravan_kaggle$ORIGIN %in% "train",]
+caravan.train <- caravan.train[-1] #delete "ORIGIN" column
+caravan.test <- caravan_kaggle_2[caravan_kaggle$ORIGIN %in% "test",]
+caravan.test <- caravan.test[-1] #delete "ORIGIN" column
+
 # Create full logistic regression model
-fit.logit.0 <- glm(CARAVAN~., family=binomial, data=ctrain)
+fit.logit.0 <- glm(CARAVAN~., family=binomial, data=caravan.train)
 summary(fit.logit.0)
 
 # Get ROC and AUC
 prob=predict(fit.logit.0,type=c("response"))
-ctrain$prob=prob
+caravan.train$prob=prob
 library(pROC)
-g <- roc(CARAVAN ~ prob, data = ctrain)
+g <- roc(CARAVAN ~ prob, data = caravan.train)
 g
 plot(g)
 
@@ -191,14 +197,14 @@ fit.pred.2 <- rep("0", 5822)
 fit.pred.2[fit.logit.0$fitted > .2] <- "1"
 
 # Find MCE
-MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2 <- (sum(5*(fit.pred.2[caravan.train$CARAVAN == "1"] != "1")) + sum(fit.pred.2[caravan.train$CARAVAN == "0"] != "0"))/length(caravan.train$CARAVAN)
 MCE.2
 ```
 
 ```{r}
 # Logistic with backward selection
-ctrain <- ctrain[-87] #delete "prob" column
-fit.backward <- regsubsets(CARAVAN ~., ctrain, nvmax=8, method="backward")
+caravan.train <- caravan.train[-87] #delete "prob" column
+fit.backward <- regsubsets(CARAVAN ~., caravan.train, nvmax=8, method="backward")
 f.b <- summary(fit.backward)
 f.b
 
@@ -208,12 +214,12 @@ plot(f.b$cp,  col="red", type="p", pch=16,
 coef(fit.backward, 8)
 
 # Fit glm model
-fit.logit.1 <- glm(CARAVAN~MRELGE+MOPLLAAG+MBERBOER+PWALAND+PPERSAUT+PBRAND+APLEZIER+ABYSTAND, family=binomial, data=ctrain)
+fit.logit.1 <- glm(CARAVAN~MRELGE+MOPLLAAG+MBERBOER+PWALAND+PPERSAUT+PBRAND+APLEZIER+ABYSTAND, family=binomial, data=caravan.train)
 
 # Get ROC and AUC
 prob=predict(fit.logit.1,type=c("response"))
-ctrain$prob=prob
-g <- roc(CARAVAN ~ prob, data = ctrain)
+caravan.train$prob=prob
+g <- roc(CARAVAN ~ prob, data = caravan.train)
 g
 plot(g)
 
@@ -222,15 +228,15 @@ fit.pred.2 <- rep("0", 5822)
 fit.pred.2[fit.logit.1$fitted > .2] <- "1"
 
 # Find MCE
-MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2 <- (sum(5*(fit.pred.2[caravan.train$CARAVAN == "1"] != "1")) + sum(fit.pred.2[caravan.train$CARAVAN == "0"] != "0"))/length(caravan.train$CARAVAN)
 MCE.2
 ```
 
 ```{r}
 # LASSO technique and elastic net
 # First, we prepare the design matrix and response
-X <- model.matrix(CARAVAN~., ctrain)[,-1]
-Y <- ctrain[, 86]
+X <- model.matrix(CARAVAN~., caravan.train)[,-1]
+Y <- caravan.train[, 86]
 
 set.seed(10) # to have same sets of K folds
 fit2.cv <- cv.glmnet(X, Y, alpha=1, family="binomial", nfolds = 10, type.measure = "deviance")  
@@ -244,13 +250,13 @@ beta.min <- rownames(as.matrix(coef.min))
 beta.min
 
 # Create the logistic regression summary
-fit.logit.2 <- glm(CARAVAN~MGEMLEEF+MGODRK+MGODPR+MGODGE+MRELGE+MRELSA+MOPLHOOG+MOPLLAAG+MBERBOER+MBERMIDD+MSKD+MHHUUR+MAUT1+MINKM30+MINK7512+MINK123M+MINKGEM+MKOOPKLA+PWAPART+PWALAND+PPERSAUT+PWERKT+PGEZONG+PWAOREG+PBRAND+PFIETS+ATRACTOR+AZEILPL+APLEZIER+AFIETS+ABYSTAND, family=binomial, data=ctrain)
+fit.logit.2 <- glm(CARAVAN~MGEMLEEF+MGODRK+MGODPR+MGODGE+MRELGE+MRELSA+MOPLHOOG+MOPLLAAG+MBERBOER+MBERMIDD+MSKD+MHHUUR+MAUT1+MINKM30+MINK7512+MINK123M+MINKGEM+MKOOPKLA+PWAPART+PWALAND+PPERSAUT+PWERKT+PGEZONG+PWAOREG+PBRAND+PFIETS+ATRACTOR+AZEILPL+APLEZIER+AFIETS+ABYSTAND, family=binomial, data=caravan.train)
 summary(fit.logit.2)
 
 # Get ROC and AUC
 prob=predict(fit.logit.2,type=c("response"))
-ctrain$prob=prob
-g <- roc(CARAVAN ~ prob, data = ctrain)
+caravan.train$prob=prob
+g <- roc(CARAVAN ~ prob, data = caravan.train)
 g
 plot(g)
 
@@ -259,7 +265,7 @@ fit.pred.2 <- rep("0", 5822)
 fit.pred.2[fit.logit.2$fitted > .2] <- "1"
 
 # Find MCE
-MCE.2 <- (sum(5*(fit.pred.2[ctrain$CARAVAN == "1"] != "1")) + sum(fit.pred.2[ctrain$CARAVAN == "0"] != "0"))/length(ctrain$CARAVAN)
+MCE.2 <- (sum(5*(fit.pred.2[caravan.train$CARAVAN == "1"] != "1")) + sum(fit.pred.2[caravan.train$CARAVAN == "0"] != "0"))/length(caravan.train$CARAVAN)
 MCE.2
 ```
 
